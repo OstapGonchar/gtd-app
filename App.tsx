@@ -23,8 +23,8 @@ import {
   getAllWeeks,
   getWeekStats,
   getAllWeeksWithStats,
-  seedDemoData,
 } from './src/database';
+import { DevTools } from './src/components/DevTools';
 import { Task, WeekStats, WeekWithStats } from './src/types';
 
 const PRIORITY_COLORS = {
@@ -77,7 +77,6 @@ export default function App() {
   useEffect(() => {
     (async () => {
       await initDB();
-      await seedDemoData(); // Seeds only if no data exists
       setIsLoading(false);
     })();
   }, []);
@@ -438,6 +437,9 @@ export default function App() {
           Less is more. Ship what matters.
         </Text>
       </View>
+
+      {/* Dev Tools - only visible in development */}
+      <DevTools onDataReset={loadData} />
     </SafeAreaView>
   );
 }

@@ -162,11 +162,13 @@ function getWeekString(weeksAgo: number): string {
   return `${targetDate.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
 }
 
-export async function seedDemoData(): Promise<void> {
-  const existingTasks = await getAllTasks();
-  if (existingTasks.length > 0) {
-    // Don't seed if data already exists
-    return;
+export async function seedDemoData(force: boolean = false): Promise<void> {
+  if (!force) {
+    const existingTasks = await getAllTasks();
+    if (existingTasks.length > 0) {
+      // Don't seed if data already exists
+      return;
+    }
   }
 
   const tasks: StoredTask[] = [];
