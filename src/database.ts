@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Category, TaskEntry, DaySummary, QuadrantBreakdown } from './types';
+import { Category, TaskEntry, DaySummary, QuadrantBreakdown, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './types';
 
 const TASKS_KEY = 'q2_tasks';
 const CATEGORIES_KEY = 'q2_categories';
+const SETTINGS_KEY = 'q2_settings';
 
 // Default categories seeded on first launch
 const DEFAULT_CATEGORIES: Omit<Category, 'id' | 'createdAt'>[] = [
@@ -175,6 +176,114 @@ export async function getAllDatesWithTasks(): Promise<string[]> {
   return [...new Set(tasks.map(t => t.date))].sort().reverse();
 }
 
+// ============ Month Summaries ============
+
+export async function getMonthSummaries(year: number, month: number): Promise<Map<string, DaySummary>> {
+  const tasks = await getAllTasks();
+  const summaries = new Map<string, DaySummary>();
+
+  // Filter tasks for the given month
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const monthTasks = tasks.filter(t => t.date.startsWith(monthStr));
+
+  // Group by date
+  const tasksByDate = new Map<string, TaskEntry[]>();
+  for (const task of monthTasks) {
+    const existing = tasksByDate.get(task.date) || [];
+    existing.push(task);
+    tasksByDate.set(task.date, existing);
+  }
+
+  // Calculate summary for each date
+  for (const [date, dateTasks] of tasksByDate) {
+    const quadrantMinutes = calculateQuadrantBreakdown(dateTasks);
+    const totalMinutes = dateTasks.reduce((sum, t) => sum + t.duration, 0);
+    summaries.set(date, {
+      date,
+      tasks: dateTasks.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      totalMinutes,
+      quadrantMinutes,
+      q2Percentage: totalMinutes > 0 ? Math.round((quadrantMinutes.q2 / totalMinutes) * 100) : 0,
+    });
+  }
+
+  return summaries;
+}
+
+// ============ Streak Calculation ============
+
+export async function calculateStreak(): Promise<StreakInfo> {
+  const dates = await getAllDatesWithTasks();
+
+  if (dates.length === 0) {
+    return { currentStreak: 0, longestStreak: 0, lastActiveDate: null };
+  }
+
+  // Sort dates in descending order (most recent first)
+  const sortedDates = [...dates].sort().reverse();
+  const lastActiveDate = sortedDates[0];
+
+  // Calculate current streak
+  let currentStreak = 0;
+  const today = getTodayDate();
+  const yesterday = getDateDaysAgo(1);
+
+  // Current streak counts if last activity was today or yesterday
+  if (lastActiveDate === today || lastActiveDate === yesterday) {
+    currentStreak = 1;
+    let checkDate = lastActiveDate;
+
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = getPreviousDay(checkDate);
+      if (sortedDates[i] === prevDate) {
+        currentStreak++;
+        checkDate = prevDate;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Calculate longest streak
+  let longestStreak = 0;
+  let tempStreak = 1;
+
+  for (let i = 1; i < sortedDates.length; i++) {
+    const prevDate = getPreviousDay(sortedDates[i - 1]);
+    if (sortedDates[i] === prevDate) {
+      tempStreak++;
+    } else {
+      longestStreak = Math.max(longestStreak, tempStreak);
+      tempStreak = 1;
+    }
+  }
+  longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
+
+  return { currentStreak, longestStreak, lastActiveDate };
+}
+
+function getPreviousDay(dateStr: string): string {
+  const date = new Date(dateStr + 'T12:00:00');
+  date.setDate(date.getDate() - 1);
+  return date.toISOString().split('T')[0];
+}
+
+// ============ Settings ============
+
+export async function getSettings(): Promise<AppSettings> {
+  const data = await AsyncStorage.getItem(SETTINGS_KEY);
+  if (data) {
+    return JSON.parse(data);
+  }
+  return { durationPresets: [...DEFAULT_DURATION_PRESETS] };
+}
+
+export async function updateSettings(settings: Partial<AppSettings>): Promise<void> {
+  const current = await getSettings();
+  const updated = { ...current, ...settings };
+  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+}
+
 // ============ Initialization ============
 
 export async function initDB(): Promise<void> {
@@ -213,7 +322,7 @@ const SAMPLE_TASKS = [
   { title: 'Prepared board deck', quadrant: 2 as const, category: 'Planning', duration: 180 },
 ];
 
-function getDateDaysAgo(daysAgo: number): string {
+export function getDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   return date.toISOString().split('T')[0];
@@ -230,8 +339,8 @@ export async function seedDemoData(force: boolean = false): Promise<void> {
 
   const tasks: TaskEntry[] = [];
 
-  // Create 14 days of demo data
-  for (let daysAgo = 14; daysAgo >= 1; daysAgo--) {
+  // Create 60 days of demo data (2 months)
+  for (let daysAgo = 60; daysAgo >= 1; daysAgo--) {
     // Skip weekends randomly
     const date = new Date();
     date.setDate(date.getDate() - daysAgo);
@@ -269,5 +378,5 @@ export async function seedDemoData(force: boolean = false): Promise<void> {
 }
 
 export async function clearAllData(): Promise<void> {
-  await AsyncStorage.multiRemove([TASKS_KEY, CATEGORIES_KEY]);
+  await AsyncStorage.multiRemove([TASKS_KEY, CATEGORIES_KEY, SETTINGS_KEY]);
 }

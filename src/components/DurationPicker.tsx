@@ -1,19 +1,21 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { DURATION_PRESETS } from '../types';
+import { DEFAULT_DURATION_PRESETS } from '../types';
 import { formatDuration } from '../database';
 
 interface DurationPickerProps {
   selected: number;
   onSelect: (duration: number) => void;
+  presets?: number[];
 }
 
-export function DurationPicker({ selected, onSelect }: DurationPickerProps) {
-  const isPreset = DURATION_PRESETS.includes(selected as any);
+export function DurationPicker({ selected, onSelect, presets }: DurationPickerProps) {
+  const durationPresets = presets ?? DEFAULT_DURATION_PRESETS;
+  const isPreset = durationPresets.includes(selected);
 
   return (
     <View style={styles.container}>
-      {DURATION_PRESETS.map((duration) => {
+      {durationPresets.map((duration) => {
         const isSelected = selected === duration;
 
         return (

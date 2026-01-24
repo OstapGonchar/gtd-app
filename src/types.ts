@@ -53,5 +53,16 @@ export const QUADRANT_INFO = {
 
 // Duration presets in minutes
 export const DURATION_PRESETS = [15, 30, 60, 120] as const;
+export const DEFAULT_DURATION_PRESETS = [15, 30, 60, 120];
 
 export type Quadrant = 1 | 2 | 3 | 4;
+
+export interface StreakInfo {
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDate: string | null;
+}
+
+export interface AppSettings {
+  durationPresets: number[];
+}

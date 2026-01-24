@@ -14,7 +14,7 @@ export function DevTools({ onDataReset }: DevToolsProps) {
 
   const handleLoadDemo = async () => {
     const confirmed = Platform.OS === 'web'
-      ? window.confirm('This will replace all data with 2 weeks of demo history. Continue?')
+      ? window.confirm('This will replace all data with 2 months of demo history. Continue?')
       : true;
 
     if (confirmed) {

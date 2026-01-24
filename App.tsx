@@ -5,7 +5,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  FlatList,
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
@@ -23,16 +22,23 @@ import {
   addTask,
   deleteTask,
   getDaySummary,
-  getRecentDays,
+  getMonthSummaries,
+  calculateStreak,
+  getSettings,
+  updateSettings,
 } from './src/database';
-import { Category, TaskEntry, DaySummary, Quadrant, QUADRANT_INFO } from './src/types';
+import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './src/types';
 import { QuadrantPicker } from './src/components/QuadrantPicker';
 import { CategoryPicker } from './src/components/CategoryPicker';
 import { DurationPicker } from './src/components/DurationPicker';
 import { Q2Progress } from './src/components/Q2Progress';
 import { DevTools } from './src/components/DevTools';
+import { CalendarView } from './src/components/CalendarView';
+import { DayDetailModal } from './src/components/DayDetailModal';
+import { StreakBadge } from './src/components/StreakBadge';
+import { IconPicker } from './src/components/IconPicker';
 
-type TabType = 'today' | 'history' | 'categories';
+type TabType = 'today' | 'history' | 'categories' | 'settings';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +47,15 @@ export default function App() {
   // Data
   const [categories, setCategories] = useState<Category[]>([]);
   const [todaySummary, setTodaySummary] = useState<DaySummary | null>(null);
-  const [recentDays, setRecentDays] = useState<DaySummary[]>([]);
+  const [streak, setStreak] = useState<StreakInfo>({ currentStreak: 0, longestStreak: 0, lastActiveDate: null });
+  const [settings, setSettings] = useState<AppSettings>({ durationPresets: DEFAULT_DURATION_PRESETS });
+
+  // Calendar/History
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [monthSummaries, setMonthSummaries] = useState<Map<string, DaySummary>>(new Map());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDaySummary, setSelectedDaySummary] = useState<DaySummary | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   // Task entry form
   const [taskTitle, setTaskTitle] = useState('');
@@ -51,22 +65,35 @@ export default function App() {
 
   // Category form
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState<string | null>(null);
+
+  // Settings form
+  const [newDurationValue, setNewDurationValue] = useState('');
 
   const loadData = useCallback(async () => {
-    const [cats, today, recent] = await Promise.all([
+    const [cats, today, streakInfo, appSettings] = await Promise.all([
       getCategories(),
       getDaySummary(getTodayDate()),
-      getRecentDays(14),
+      calculateStreak(),
+      getSettings(),
     ]);
     setCategories(cats);
     setTodaySummary(today);
-    setRecentDays(recent);
+    setStreak(streakInfo);
+    setSettings(appSettings);
 
     // Set default category if none selected
     if (!taskCategory && cats.length > 0) {
       setTaskCategory(cats[0].id);
     }
   }, [taskCategory]);
+
+  const loadMonthData = useCallback(async () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const summaries = await getMonthSummaries(year, month);
+    setMonthSummaries(summaries);
+  }, [currentMonth]);
 
   useEffect(() => {
     (async () => {
@@ -80,6 +107,12 @@ export default function App() {
       loadData();
     }
   }, [isLoading, loadData]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      loadMonthData();
+    }
+  }, [isLoading, loadMonthData]);
 
   const handleAddTask = async () => {
     if (!taskTitle.trim() || !taskQuadrant || !taskCategory) return;
@@ -105,9 +138,43 @@ export default function App() {
     if (!newCategoryName.trim()) return;
     const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'];
     const color = colors[categories.length % colors.length];
-    await addCategory(newCategoryName.trim(), color);
+    await addCategory(newCategoryName.trim(), color, newCategoryIcon || undefined);
     setNewCategoryName('');
+    setNewCategoryIcon(null);
     loadData();
+  };
+
+  const handleDayPress = async (date: string) => {
+    setSelectedDate(date);
+    const summary = monthSummaries.get(date);
+    if (summary) {
+      setSelectedDaySummary(summary);
+    } else {
+      setSelectedDaySummary({ date, tasks: [], totalMinutes: 0, quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 }, q2Percentage: 0 });
+    }
+    setIsModalVisible(true);
+  };
+
+  const handleMonthChange = (date: Date) => {
+    setCurrentMonth(date);
+  };
+
+  const handleAddDurationPreset = async () => {
+    const value = parseInt(newDurationValue, 10);
+    if (isNaN(value) || value <= 0 || value > 480) return;
+    if (settings.durationPresets.includes(value)) return;
+
+    const newPresets = [...settings.durationPresets, value].sort((a, b) => a - b);
+    await updateSettings({ durationPresets: newPresets });
+    setSettings({ ...settings, durationPresets: newPresets });
+    setNewDurationValue('');
+  };
+
+  const handleRemoveDurationPreset = async (duration: number) => {
+    if (settings.durationPresets.length <= 1) return;
+    const newPresets = settings.durationPresets.filter(d => d !== duration);
+    await updateSettings({ durationPresets: newPresets });
+    setSettings({ ...settings, durationPresets: newPresets });
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
@@ -141,20 +208,23 @@ export default function App() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Q2 Focus</Text>
-        <Text style={styles.subtitle}>Track what matters</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Q2 Focus</Text>
+          <Text style={styles.subtitle}>Track what matters</Text>
+        </View>
+        <StreakBadge streak={streak} />
       </View>
 
       {/* Tab Bar */}
       <View style={styles.tabBar}>
-        {(['today', 'history', 'categories'] as TabType[]).map((tab) => (
+        {(['today', 'history', 'categories', 'settings'] as TabType[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'today' ? 'Today' : tab === 'history' ? 'History' : 'Categories'}
+              {tab === 'today' ? 'Today' : tab === 'history' ? 'History' : tab === 'categories' ? 'Categories' : 'Settings'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -198,7 +268,7 @@ export default function App() {
             />
 
             <Text style={styles.fieldLabel}>Duration</Text>
-            <DurationPicker selected={taskDuration} onSelect={setTaskDuration} />
+            <DurationPicker selected={taskDuration} onSelect={setTaskDuration} presets={settings.durationPresets} />
 
             <TouchableOpacity
               style={[styles.addButton, !canAddTask && styles.addButtonDisabled]}
@@ -253,69 +323,24 @@ export default function App() {
       {/* History Tab */}
       {activeTab === 'history' && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {recentDays.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateEmoji}>{'\u{1F4C5}'}</Text>
-              <Text style={styles.emptyStateText}>
-                No history yet.{'\n'}Start logging activities to see your patterns.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Recent Days</Text>
-                {recentDays.map((day) => {
-                  const isToday = day.date === getTodayDate();
-                  return (
-                    <View key={day.date} style={[styles.dayCard, isToday && styles.dayCardToday]}>
-                      <View style={styles.dayHeader}>
-                        <Text style={styles.dayDate}>
-                          {isToday ? 'Today' : formatDate(day.date)}
-                        </Text>
-                        <View style={styles.dayStats}>
-                          <Text
-                            style={[
-                              styles.dayQ2,
-                              day.q2Percentage >= 30 && styles.dayQ2Good,
-                            ]}
-                          >
-                            {day.q2Percentage}% Q2
-                          </Text>
-                          <Text style={styles.dayTotal}>{formatDuration(day.totalMinutes)}</Text>
-                        </View>
-                      </View>
-
-                      {/* Mini breakdown bar */}
-                      {day.totalMinutes > 0 && (
-                        <View style={styles.miniBar}>
-                          {([1, 2, 3, 4] as const).map((q) => {
-                            const minutes = day.quadrantMinutes[`q${q}` as keyof typeof day.quadrantMinutes];
-                            const percent = (minutes / day.totalMinutes) * 100;
-                            if (percent === 0) return null;
-                            return (
-                              <View
-                                key={q}
-                                style={[
-                                  styles.miniBarSegment,
-                                  { width: `${percent}%`, backgroundColor: QUADRANT_INFO[q].color },
-                                ]}
-                              />
-                            );
-                          })}
-                        </View>
-                      )}
-
-                      <Text style={styles.dayTaskCount}>
-                        {day.tasks.length} activit{day.tasks.length === 1 ? 'y' : 'ies'}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          )}
+          <CalendarView
+            monthSummaries={monthSummaries}
+            currentMonth={currentMonth}
+            onMonthChange={handleMonthChange}
+            onDayPress={handleDayPress}
+            streak={streak}
+            selectedDate={selectedDate}
+          />
         </ScrollView>
       )}
+
+      {/* Day Detail Modal */}
+      <DayDetailModal
+        visible={isModalVisible}
+        daySummary={selectedDaySummary}
+        categories={categories}
+        onClose={() => setIsModalVisible(false)}
+      />
 
       {/* Categories Tab */}
       {activeTab === 'categories' && (
@@ -337,7 +362,7 @@ export default function App() {
               </View>
             ))}
 
-            <View style={styles.addCategoryRow}>
+            <View style={styles.addCategoryForm}>
               <TextInput
                 style={styles.addCategoryInput}
                 placeholder="New category name..."
@@ -345,20 +370,90 @@ export default function App() {
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
               />
+              <Text style={styles.fieldLabelSmall}>Choose Icon</Text>
+              <IconPicker selected={newCategoryIcon} onSelect={setNewCategoryIcon} />
               <TouchableOpacity
                 style={[styles.addCategoryButton, !newCategoryName.trim() && styles.addButtonDisabled]}
                 onPress={handleAddCategory}
                 disabled={!newCategoryName.trim()}
               >
-                <Text style={styles.addCategoryButtonText}>Add</Text>
+                <Text style={styles.addCategoryButtonText}>Add Category</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
       )}
 
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Duration Presets</Text>
+            <Text style={styles.settingsDescription}>
+              Customize the duration options shown when logging activities.
+            </Text>
+
+            <View style={styles.presetsContainer}>
+              {settings.durationPresets.map((duration) => (
+                <View key={duration} style={styles.presetItem}>
+                  <Text style={styles.presetText}>{formatDuration(duration)}</Text>
+                  <TouchableOpacity
+                    style={styles.presetDelete}
+                    onPress={() => handleRemoveDurationPreset(duration)}
+                    disabled={settings.durationPresets.length <= 1}
+                  >
+                    <Text style={[styles.presetDeleteText, settings.durationPresets.length <= 1 && styles.presetDeleteDisabled]}>
+                      {'\u00D7'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.addPresetRow}>
+              <TextInput
+                style={styles.addPresetInput}
+                placeholder="Minutes (e.g., 45)"
+                placeholderTextColor="#6b7280"
+                value={newDurationValue}
+                onChangeText={setNewDurationValue}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity
+                style={[styles.addPresetButton, !newDurationValue.trim() && styles.addButtonDisabled]}
+                onPress={handleAddDurationPreset}
+                disabled={!newDurationValue.trim()}
+              >
+                <Text style={styles.addPresetButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Streak Info</Text>
+            <View style={styles.streakInfoCard}>
+              <View style={styles.streakInfoRow}>
+                <Text style={styles.streakInfoLabel}>Current Streak</Text>
+                <Text style={styles.streakInfoValue}>{streak.currentStreak} days</Text>
+              </View>
+              <View style={styles.streakInfoRow}>
+                <Text style={styles.streakInfoLabel}>Longest Streak</Text>
+                <Text style={styles.streakInfoValue}>{streak.longestStreak} days</Text>
+              </View>
+              {streak.lastActiveDate && (
+                <View style={styles.streakInfoRow}>
+                  <Text style={styles.streakInfoLabel}>Last Active</Text>
+                  <Text style={styles.streakInfoValue}>{formatDate(streak.lastActiveDate)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+        </ScrollView>
+      )}
+
       {/* Dev Tools */}
-      <DevTools onDataReset={loadData} />
+      <DevTools onDataReset={() => { loadData(); loadMonthData(); }} />
     </SafeAreaView>
   );
 }
@@ -380,9 +475,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
   },
   title: {
     fontSize: 32,
@@ -404,16 +505,16 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   tabActive: {
     backgroundColor: '#8b5cf6',
   },
   tabText: {
     color: '#6b7280',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   tabTextActive: {
@@ -622,12 +723,88 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 24,
   },
-  addCategoryRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
+  addCategoryForm: {
+    marginTop: 16,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 14,
   },
   addCategoryInput: {
+    backgroundColor: '#252542',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#ffffff',
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#252542',
+  },
+  fieldLabelSmall: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  addCategoryButton: {
+    backgroundColor: '#8b5cf6',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  addCategoryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  settingsDescription: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  presetsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  presetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderRadius: 10,
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  presetText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  presetDelete: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#252542',
+  },
+  presetDeleteText: {
+    color: '#ef4444',
+    fontSize: 18,
+  },
+  presetDeleteDisabled: {
+    color: '#4b5563',
+  },
+  addPresetRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  addPresetInput: {
     flex: 1,
     backgroundColor: '#1a1a2e',
     borderRadius: 10,
@@ -638,13 +815,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#252542',
   },
-  addCategoryButton: {
+  addPresetButton: {
     backgroundColor: '#8b5cf6',
     borderRadius: 10,
     paddingHorizontal: 20,
     justifyContent: 'center',
   },
-  addCategoryButtonText: {
+  addPresetButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  streakInfoCard: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 16,
+  },
+  streakInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  streakInfoLabel: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  streakInfoValue: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
