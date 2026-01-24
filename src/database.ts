@@ -1,214 +1,273 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, WeekStats } from './types';
+import { Category, TaskEntry, DaySummary, QuadrantBreakdown } from './types';
 
-const TASKS_KEY = 'gtd_tasks';
-let nextId = 1;
+const TASKS_KEY = 'q2_tasks';
+const CATEGORIES_KEY = 'q2_categories';
 
-interface StoredTask {
-  id: number;
-  title: string;
-  week: string;
-  done: boolean;
-  priority: 1 | 2 | 3;
-  createdAt: string;
+// Default categories seeded on first launch
+const DEFAULT_CATEGORIES: Omit<Category, 'id' | 'createdAt'>[] = [
+  { name: 'Deep Work', color: '#8b5cf6', icon: '🎯' },
+  { name: 'Meetings', color: '#f59e0b', icon: '👥' },
+  { name: '1:1s', color: '#10b981', icon: '🤝' },
+  { name: 'Admin', color: '#6b7280', icon: '📋' },
+  { name: 'Firefighting', color: '#ef4444', icon: '🔥' },
+  { name: 'Learning', color: '#3b82f6', icon: '📚' },
+  { name: 'Planning', color: '#8b5cf6', icon: '🗺️' },
+  { name: 'Email/Slack', color: '#f59e0b', icon: '💬' },
+];
+
+// ============ Helpers ============
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-async function getAllTasks(): Promise<StoredTask[]> {
+export function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+export function formatDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+// ============ Categories ============
+
+async function getAllCategories(): Promise<Category[]> {
+  const data = await AsyncStorage.getItem(CATEGORIES_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+async function saveCategories(categories: Category[]): Promise<void> {
+  await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+}
+
+export async function getCategories(): Promise<Category[]> {
+  return getAllCategories();
+}
+
+export async function addCategory(name: string, color: string, icon?: string): Promise<Category> {
+  const categories = await getAllCategories();
+  const newCategory: Category = {
+    id: generateId(),
+    name,
+    color,
+    icon,
+    createdAt: new Date().toISOString(),
+  };
+  categories.push(newCategory);
+  await saveCategories(categories);
+  return newCategory;
+}
+
+export async function updateCategory(id: string, updates: Partial<Omit<Category, 'id' | 'createdAt'>>): Promise<void> {
+  const categories = await getAllCategories();
+  const index = categories.findIndex(c => c.id === id);
+  if (index !== -1) {
+    categories[index] = { ...categories[index], ...updates };
+    await saveCategories(categories);
+  }
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const categories = await getAllCategories();
+  const filtered = categories.filter(c => c.id !== id);
+  await saveCategories(filtered);
+}
+
+// ============ Tasks ============
+
+async function getAllTasks(): Promise<TaskEntry[]> {
   const data = await AsyncStorage.getItem(TASKS_KEY);
   return data ? JSON.parse(data) : [];
 }
 
-async function saveTasks(tasks: StoredTask[]): Promise<void> {
+async function saveTasks(tasks: TaskEntry[]): Promise<void> {
   await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
 }
 
-export async function initDB(): Promise<void> {
+export async function addTask(
+  title: string,
+  quadrant: 1 | 2 | 3 | 4,
+  categoryId: string,
+  duration: number,
+  date?: string
+): Promise<TaskEntry> {
   const tasks = await getAllTasks();
-  if (tasks.length > 0) {
-    nextId = Math.max(...tasks.map(t => t.id)) + 1;
-  }
-}
-
-export function getCurrentWeek(): string {
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const days = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
-  const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
-}
-
-export function getWeekDates(weekStr: string): { start: string; end: string } {
-  const [year, week] = [parseInt(weekStr.slice(0, 4)), parseInt(weekStr.slice(6))];
-  const jan1 = new Date(year, 0, 1);
-  const daysOffset = (week - 1) * 7 - jan1.getDay() + 1;
-  const startDate = new Date(year, 0, 1 + daysOffset);
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-
-  const format = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return { start: format(startDate), end: format(endDate) };
-}
-
-export async function addTask(title: string, week: string, priority: 1 | 2 | 3 = 2): Promise<number> {
-  const tasks = await getAllTasks();
-  const newTask: StoredTask = {
-    id: nextId++,
+  const newTask: TaskEntry = {
+    id: generateId(),
     title,
-    week,
-    done: false,
-    priority,
+    quadrant,
+    categoryId,
+    duration,
+    date: date || getTodayDate(),
     createdAt: new Date().toISOString(),
   };
   tasks.push(newTask);
   await saveTasks(tasks);
-  return newTask.id;
+  return newTask;
 }
 
-export async function getTasks(week: string): Promise<Task[]> {
+export async function updateTask(id: string, updates: Partial<Omit<TaskEntry, 'id' | 'createdAt'>>): Promise<void> {
   const tasks = await getAllTasks();
-  return tasks
-    .filter(t => t.week === week)
-    .sort((a, b) => {
-      if (a.priority !== b.priority) return a.priority - b.priority;
-      return a.createdAt.localeCompare(b.createdAt);
-    });
-}
-
-export async function toggleTask(taskId: number): Promise<void> {
-  const tasks = await getAllTasks();
-  const task = tasks.find(t => t.id === taskId);
-  if (task) {
-    task.done = !task.done;
+  const index = tasks.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tasks[index] = { ...tasks[index], ...updates };
     await saveTasks(tasks);
   }
 }
 
-export async function deleteTask(taskId: number): Promise<void> {
+export async function deleteTask(id: string): Promise<void> {
   const tasks = await getAllTasks();
-  const filtered = tasks.filter(t => t.id !== taskId);
+  const filtered = tasks.filter(t => t.id !== id);
   await saveTasks(filtered);
 }
 
-export async function getAllWeeks(): Promise<string[]> {
+export async function getTasksForDate(date: string): Promise<TaskEntry[]> {
   const tasks = await getAllTasks();
-  const weeks = [...new Set(tasks.map(t => t.week))];
-  return weeks.sort().reverse();
+  return tasks
+    .filter(t => t.date === date)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function getWeekStats(week: string): Promise<WeekStats> {
-  const tasks = await getAllTasks();
-  const weekTasks = tasks.filter(t => t.week === week);
+// ============ Summaries ============
+
+function calculateQuadrantBreakdown(tasks: TaskEntry[]): QuadrantBreakdown {
+  return tasks.reduce(
+    (acc, task) => {
+      acc[`q${task.quadrant}` as keyof QuadrantBreakdown] += task.duration;
+      return acc;
+    },
+    { q1: 0, q2: 0, q3: 0, q4: 0 }
+  );
+}
+
+export async function getDaySummary(date: string): Promise<DaySummary> {
+  const tasks = await getTasksForDate(date);
+  const quadrantMinutes = calculateQuadrantBreakdown(tasks);
+  const totalMinutes = tasks.reduce((sum, t) => sum + t.duration, 0);
+
   return {
-    total: weekTasks.length,
-    completed: weekTasks.filter(t => t.done).length,
+    date,
+    tasks,
+    totalMinutes,
+    quadrantMinutes,
+    q2Percentage: totalMinutes > 0 ? Math.round((quadrantMinutes.q2 / totalMinutes) * 100) : 0,
   };
 }
 
-export async function getWeekNumber(weekStr: string): Promise<number> {
-  return parseInt(weekStr.slice(6));
-}
-
-export async function getAllWeeksWithStats(): Promise<Array<{ week: string; stats: WeekStats; dates: { start: string; end: string } }>> {
+export async function getRecentDays(count: number = 7): Promise<DaySummary[]> {
   const tasks = await getAllTasks();
-  const weeks = [...new Set(tasks.map(t => t.week))].sort().reverse();
+  const dates = [...new Set(tasks.map(t => t.date))].sort().reverse().slice(0, count);
 
-  return weeks.map(week => {
-    const weekTasks = tasks.filter(t => t.week === week);
-    return {
-      week,
-      stats: {
-        total: weekTasks.length,
-        completed: weekTasks.filter(t => t.done).length,
-      },
-      dates: getWeekDates(week),
-    };
-  });
+  return Promise.all(dates.map(date => getDaySummary(date)));
 }
 
-// Demo data for testing - creates realistic historical data
+export async function getAllDatesWithTasks(): Promise<string[]> {
+  const tasks = await getAllTasks();
+  return [...new Set(tasks.map(t => t.date))].sort().reverse();
+}
+
+// ============ Initialization ============
+
+export async function initDB(): Promise<void> {
+  // Seed default categories if none exist
+  const categories = await getAllCategories();
+  if (categories.length === 0) {
+    const seeded = DEFAULT_CATEGORIES.map(cat => ({
+      ...cat,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    }));
+    await saveCategories(seeded);
+  }
+}
+
+// ============ Demo Data ============
+
 const SAMPLE_TASKS = [
-  // High priority work tasks
-  'Finish Q4 planning deck',
-  'Review team performance docs',
-  'Prep board presentation',
-  'Complete architecture review',
-  'Ship critical bugfix',
-  'Finalize hiring decision',
-  'Submit budget proposal',
-  // Medium priority
-  'Update team wiki',
-  'Schedule 1:1s for month',
-  'Review PRs from team',
-  'Write technical spec',
-  'Organize backlog',
-  'Respond to partner email',
-  'Update roadmap doc',
-  // Low priority / personal
-  'Book dentist appointment',
-  'Order new monitor',
-  'Clean up email inbox',
-  'Read leadership article',
-  'Update LinkedIn profile',
-  'Plan team offsite',
-  'Review expense reports',
+  { title: 'Team standup', quadrant: 3 as const, category: 'Meetings', duration: 30 },
+  { title: 'Fixed production bug', quadrant: 1 as const, category: 'Firefighting', duration: 120 },
+  { title: '1:1 with Sarah', quadrant: 2 as const, category: '1:1s', duration: 45 },
+  { title: 'Slack/email triage', quadrant: 3 as const, category: 'Email/Slack', duration: 60 },
+  { title: 'Strategic roadmap planning', quadrant: 2 as const, category: 'Planning', duration: 90 },
+  { title: 'Code review', quadrant: 2 as const, category: 'Deep Work', duration: 45 },
+  { title: 'Interview candidate', quadrant: 2 as const, category: 'Meetings', duration: 60 },
+  { title: 'Sprint planning', quadrant: 3 as const, category: 'Meetings', duration: 90 },
+  { title: 'Debugged flaky test', quadrant: 1 as const, category: 'Firefighting', duration: 60 },
+  { title: 'Read engineering blog', quadrant: 2 as const, category: 'Learning', duration: 30 },
+  { title: 'Expense reports', quadrant: 4 as const, category: 'Admin', duration: 30 },
+  { title: 'Wrote technical spec', quadrant: 2 as const, category: 'Deep Work', duration: 120 },
+  { title: 'Customer escalation call', quadrant: 1 as const, category: 'Firefighting', duration: 45 },
+  { title: 'Architecture review', quadrant: 2 as const, category: 'Deep Work', duration: 90 },
+  { title: 'Updated team wiki', quadrant: 4 as const, category: 'Admin', duration: 30 },
+  { title: '1:1 with manager', quadrant: 2 as const, category: '1:1s', duration: 30 },
+  { title: 'Browsed LinkedIn', quadrant: 4 as const, category: 'Admin', duration: 20 },
+  { title: 'Prepared board deck', quadrant: 2 as const, category: 'Planning', duration: 180 },
 ];
 
-function getWeekString(weeksAgo: number): string {
-  const now = new Date();
-  const targetDate = new Date(now.getTime() - weeksAgo * 7 * 24 * 60 * 60 * 1000);
-  const startOfYear = new Date(targetDate.getFullYear(), 0, 1);
-  const days = Math.floor((targetDate.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
-  const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  return `${targetDate.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+function getDateDaysAgo(daysAgo: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return date.toISOString().split('T')[0];
 }
 
 export async function seedDemoData(force: boolean = false): Promise<void> {
   if (!force) {
-    const existingTasks = await getAllTasks();
-    if (existingTasks.length > 0) {
-      // Don't seed if data already exists
-      return;
-    }
+    const tasks = await getAllTasks();
+    if (tasks.length > 0) return;
   }
 
-  const tasks: StoredTask[] = [];
-  let id = 1;
-  const usedTasks = new Set<string>();
+  const categories = await getAllCategories();
+  const categoryMap = new Map(categories.map(c => [c.name, c.id]));
 
-  // Create data for past 6 weeks (not current week)
-  for (let weeksAgo = 6; weeksAgo >= 1; weeksAgo--) {
-    const week = getWeekString(weeksAgo);
-    const taskCount = Math.floor(Math.random() * 3) + 3; // 3-5 tasks
+  const tasks: TaskEntry[] = [];
+
+  // Create 14 days of demo data
+  for (let daysAgo = 14; daysAgo >= 1; daysAgo--) {
+    // Skip weekends randomly
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    if (date.getDay() === 0 || date.getDay() === 6) {
+      if (Math.random() > 0.3) continue; // 70% chance to skip weekends
+    }
+
+    const dateStr = getDateDaysAgo(daysAgo);
+    const taskCount = Math.floor(Math.random() * 4) + 4; // 4-7 tasks per day
+    const usedIndices = new Set<number>();
 
     for (let i = 0; i < taskCount; i++) {
-      // Pick a random unused task title
-      let title: string;
+      let idx: number;
       do {
-        title = SAMPLE_TASKS[Math.floor(Math.random() * SAMPLE_TASKS.length)];
-      } while (usedTasks.has(`${week}-${title}`));
-      usedTasks.add(`${week}-${title}`);
+        idx = Math.floor(Math.random() * SAMPLE_TASKS.length);
+      } while (usedIndices.has(idx));
+      usedIndices.add(idx);
 
-      const priority = (Math.floor(Math.random() * 3) + 1) as 1 | 2 | 3;
-      // Older weeks have higher completion rate (70-90%), recent weeks lower (40-70%)
-      const completionChance = weeksAgo > 3 ? 0.7 + Math.random() * 0.2 : 0.4 + Math.random() * 0.3;
-      const done = Math.random() < completionChance;
+      const sample = SAMPLE_TASKS[idx];
+      const categoryId = categoryMap.get(sample.category) || categories[0].id;
 
       tasks.push({
-        id: id++,
-        title,
-        week,
-        done,
-        priority,
-        createdAt: new Date(Date.now() - weeksAgo * 7 * 24 * 60 * 60 * 1000 + i * 1000).toISOString(),
+        id: generateId(),
+        title: sample.title,
+        quadrant: sample.quadrant,
+        categoryId,
+        duration: sample.duration + (Math.floor(Math.random() * 3) - 1) * 15, // +/- 15min variance
+        date: dateStr,
+        createdAt: new Date(dateStr + 'T' + String(9 + i).padStart(2, '0') + ':00:00').toISOString(),
       });
     }
   }
 
   await saveTasks(tasks);
-  nextId = id;
 }
 
 export async function clearAllData(): Promise<void> {
-  await AsyncStorage.removeItem(TASKS_KEY);
-  nextId = 1;
+  await AsyncStorage.multiRemove([TASKS_KEY, CATEGORIES_KEY]);
 }

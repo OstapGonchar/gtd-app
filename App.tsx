@@ -8,71 +8,65 @@ import {
   FlatList,
   SafeAreaView,
   StatusBar,
-  Alert,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import {
   initDB,
-  getCurrentWeek,
-  getWeekDates,
+  getTodayDate,
+  formatDate,
+  formatDuration,
+  getCategories,
+  addCategory,
+  deleteCategory,
   addTask,
-  getTasks,
-  toggleTask,
   deleteTask,
-  getAllWeeks,
-  getWeekStats,
-  getAllWeeksWithStats,
+  getDaySummary,
+  getRecentDays,
 } from './src/database';
+import { Category, TaskEntry, DaySummary, Quadrant, QUADRANT_INFO } from './src/types';
+import { QuadrantPicker } from './src/components/QuadrantPicker';
+import { CategoryPicker } from './src/components/CategoryPicker';
+import { DurationPicker } from './src/components/DurationPicker';
+import { Q2Progress } from './src/components/Q2Progress';
 import { DevTools } from './src/components/DevTools';
-import { Task, WeekStats, WeekWithStats } from './src/types';
 
-const PRIORITY_COLORS = {
-  1: '#ef4444', // red - high
-  2: '#f59e0b', // amber - medium
-  3: '#10b981', // emerald - low
-};
-
-const PRIORITY_LABELS = {
-  1: 'High',
-  2: 'Med',
-  3: 'Low',
-};
-
-type TabType = 'week' | 'history';
+type TabType = 'today' | 'history' | 'categories';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('week');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState<1 | 2 | 3>(2);
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
-  const [allWeeks, setAllWeeks] = useState<string[]>([]);
-  const [stats, setStats] = useState<WeekStats>({ total: 0, completed: 0 });
-  const [historyData, setHistoryData] = useState<WeekWithStats[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('today');
 
-  const currentWeek = getCurrentWeek();
-  const isCurrentWeek = selectedWeek === currentWeek;
-  const weekDates = getWeekDates(selectedWeek);
+  // Data
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [todaySummary, setTodaySummary] = useState<DaySummary | null>(null);
+  const [recentDays, setRecentDays] = useState<DaySummary[]>([]);
+
+  // Task entry form
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskQuadrant, setTaskQuadrant] = useState<Quadrant | null>(null);
+  const [taskCategory, setTaskCategory] = useState<string | null>(null);
+  const [taskDuration, setTaskDuration] = useState(30);
+
+  // Category form
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const loadData = useCallback(async () => {
-    const [tasksData, weeksData, statsData, historyStats] = await Promise.all([
-      getTasks(selectedWeek),
-      getAllWeeks(),
-      getWeekStats(selectedWeek),
-      getAllWeeksWithStats(),
+    const [cats, today, recent] = await Promise.all([
+      getCategories(),
+      getDaySummary(getTodayDate()),
+      getRecentDays(14),
     ]);
-    setTasks(tasksData);
-    setStats(statsData);
-    setHistoryData(historyStats);
+    setCategories(cats);
+    setTodaySummary(today);
+    setRecentDays(recent);
 
-    // Ensure current week is always in the list
-    const weeks = weeksData.includes(currentWeek)
-      ? weeksData
-      : [currentWeek, ...weeksData];
-    setAllWeeks(weeks);
-  }, [selectedWeek, currentWeek]);
+    // Set default category if none selected
+    if (!taskCategory && cats.length > 0) {
+      setTaskCategory(cats[0].id);
+    }
+  }, [taskCategory]);
 
   useEffect(() => {
     (async () => {
@@ -88,79 +82,58 @@ export default function App() {
   }, [isLoading, loadData]);
 
   const handleAddTask = async () => {
-    if (!newTaskTitle.trim()) return;
-    if (tasks.length >= 5) {
-      Alert.alert('Stay Focused!', 'Max 5 tasks per week. Complete something first to add more.');
-      return;
-    }
-    await addTask(newTaskTitle.trim(), selectedWeek, newTaskPriority);
-    setNewTaskTitle('');
-    setNewTaskPriority(2);
+    if (!taskTitle.trim() || !taskQuadrant || !taskCategory) return;
+
+    await addTask(taskTitle.trim(), taskQuadrant, taskCategory, taskDuration);
+    setTaskTitle('');
+    setTaskQuadrant(null);
+    // Keep category and duration as defaults for next entry
     loadData();
   };
 
-  const handleToggleTask = async (taskId: number) => {
-    await toggleTask(taskId);
+  const handleDeleteTask = async (taskId: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Delete this task?')
+      : true;
+    if (confirmed) {
+      await deleteTask(taskId);
+      loadData();
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'];
+    const color = colors[categories.length % colors.length];
+    await addCategory(newCategoryName.trim(), color);
+    setNewCategoryName('');
     loadData();
   };
 
-  const handleDeleteTask = async (taskId: number) => {
-    Alert.alert('Delete Task', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteTask(taskId);
-          loadData();
-        },
-      },
-    ]);
-  };
-
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const currentIndex = allWeeks.indexOf(selectedWeek);
-    if (direction === 'prev' && currentIndex < allWeeks.length - 1) {
-      setSelectedWeek(allWeeks[currentIndex + 1]);
-    } else if (direction === 'next' && currentIndex > 0) {
-      setSelectedWeek(allWeeks[currentIndex - 1]);
+  const handleDeleteCategory = async (categoryId: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Delete this category?')
+      : true;
+    if (confirmed) {
+      await deleteCategory(categoryId);
+      loadData();
     }
   };
 
-  const getCompletionEmoji = (completed: number, total: number): string => {
-    if (total === 0) return '';
-    const ratio = completed / total;
-    if (ratio === 1) return ' \u{1F525}'; // Fire emoji for 100%
-    if (ratio >= 0.8) return ' \u{1F4AA}'; // Flexed bicep for 80%+
-    if (ratio >= 0.6) return ' \u{1F44D}'; // Thumbs up for 60%+
-    if (ratio >= 0.4) return ' \u{1F914}'; // Thinking face for 40%+
-    return ' \u{1F6A7}'; // Construction for <40%
-  };
-
-  const getStreakCount = (): number => {
-    let streak = 0;
-    for (const weekData of historyData) {
-      if (weekData.week === currentWeek) continue; // Don't count current week
-      if (weekData.stats.total > 0 && weekData.stats.completed === weekData.stats.total) {
-        streak++;
-      } else if (weekData.stats.total > 0) {
-        break; // Streak broken
-      }
-    }
-    return streak;
+  const getCategoryById = (id: string): Category | undefined => {
+    return categories.find(c => c.id === id);
   };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading your wins...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
   }
 
-  const progressPercent = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
-  const streak = getStreakCount();
+  const canAddTask = taskTitle.trim() && taskQuadrant && taskCategory;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -168,277 +141,223 @@ export default function App() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.title}>Weekly Five</Text>
-            <Text style={styles.subtitle}>Ship 5 things. Every week.</Text>
-          </View>
-          {streak > 0 && (
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakText}>{streak} {'\u{1F525}'}</Text>
-              <Text style={styles.streakLabel}>week streak</Text>
-            </View>
-          )}
-        </View>
+        <Text style={styles.title}>Q2 Focus</Text>
+        <Text style={styles.subtitle}>Track what matters</Text>
       </View>
 
       {/* Tab Bar */}
       <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'week' && styles.tabActive]}
-          onPress={() => setActiveTab('week')}
-        >
-          <Text style={[styles.tabText, activeTab === 'week' && styles.tabTextActive]}>
-            This Week
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'history' && styles.tabActive]}
-          onPress={() => setActiveTab('history')}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-            History
-          </Text>
-        </TouchableOpacity>
+        {(['today', 'history', 'categories'] as TabType[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab === 'today' ? 'Today' : tab === 'history' ? 'History' : 'Categories'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {activeTab === 'week' ? (
-        <>
-          {/* Week Selector */}
-          <View style={styles.weekSelector}>
-            <TouchableOpacity
-              onPress={() => navigateWeek('prev')}
-              style={[styles.navButton, allWeeks.indexOf(selectedWeek) === allWeeks.length - 1 && styles.navButtonDisabled]}
-              disabled={allWeeks.indexOf(selectedWeek) === allWeeks.length - 1}
-            >
-              <Text style={styles.navButtonText}>{'\u2190'}</Text>
-            </TouchableOpacity>
+      {/* Today Tab */}
+      {activeTab === 'today' && (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Today's Progress */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{formatDate(getTodayDate())}</Text>
+            {todaySummary && (
+              <Q2Progress
+                quadrantMinutes={todaySummary.quadrantMinutes}
+                totalMinutes={todaySummary.totalMinutes}
+                q2Percentage={todaySummary.q2Percentage}
+              />
+            )}
+          </View>
 
-            <View style={styles.weekInfo}>
-              <Text style={styles.weekText}>
-                {isCurrentWeek ? 'This Week' : selectedWeek}
-              </Text>
-              <Text style={styles.weekDates}>
-                {weekDates.start} - {weekDates.end}
-              </Text>
-            </View>
+          {/* Add Task Form */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Log Activity</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="What did you work on?"
+              placeholderTextColor="#6b7280"
+              value={taskTitle}
+              onChangeText={setTaskTitle}
+            />
+
+            <Text style={styles.fieldLabel}>Quadrant</Text>
+            <QuadrantPicker selected={taskQuadrant} onSelect={setTaskQuadrant} />
+
+            <Text style={styles.fieldLabel}>Category</Text>
+            <CategoryPicker
+              categories={categories}
+              selected={taskCategory}
+              onSelect={setTaskCategory}
+            />
+
+            <Text style={styles.fieldLabel}>Duration</Text>
+            <DurationPicker selected={taskDuration} onSelect={setTaskDuration} />
 
             <TouchableOpacity
-              onPress={() => navigateWeek('next')}
-              style={[styles.navButton, allWeeks.indexOf(selectedWeek) === 0 && styles.navButtonDisabled]}
-              disabled={allWeeks.indexOf(selectedWeek) === 0}
+              style={[styles.addButton, !canAddTask && styles.addButtonDisabled]}
+              onPress={handleAddTask}
+              disabled={!canAddTask}
             >
-              <Text style={styles.navButtonText}>{'\u2192'}</Text>
+              <Text style={styles.addButtonText}>+ Log Activity</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Progress Bar */}
-          {stats.total > 0 && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-              </View>
-              <Text style={styles.progressText}>
-                {stats.completed}/{stats.total} shipped{getCompletionEmoji(stats.completed, stats.total)}
-              </Text>
-            </View>
-          )}
-
-          {/* Add Task Form (only for current week) */}
-          {isCurrentWeek && (
-            <View style={styles.addTaskForm}>
-              <TextInput
-                style={styles.input}
-                placeholder="What will you ship this week?"
-                placeholderTextColor="#6b7280"
-                value={newTaskTitle}
-                onChangeText={setNewTaskTitle}
-                onSubmitEditing={handleAddTask}
-              />
-              <View style={styles.formRow}>
-                <View style={styles.prioritySelector}>
-                  {([1, 2, 3] as const).map((p) => (
-                    <TouchableOpacity
-                      key={p}
+          {/* Today's Tasks */}
+          {todaySummary && todaySummary.tasks.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Today's Log</Text>
+              {todaySummary.tasks.map((task) => {
+                const category = getCategoryById(task.categoryId);
+                return (
+                  <View key={task.id} style={styles.taskItem}>
+                    <View
                       style={[
-                        styles.priorityButton,
-                        { backgroundColor: PRIORITY_COLORS[p] },
-                        newTaskPriority === p && styles.priorityButtonSelected,
+                        styles.taskQuadrant,
+                        { backgroundColor: QUADRANT_INFO[task.quadrant].color },
                       ]}
-                      onPress={() => setNewTaskPriority(p)}
                     >
-                      <Text style={styles.priorityButtonText}>{PRIORITY_LABELS[p]}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-                  <Text style={styles.addButtonText}>+ Add</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.slotsText}>
-                {5 - tasks.length} slot{5 - tasks.length !== 1 ? 's' : ''} remaining
-              </Text>
-            </View>
-          )}
-
-          {/* Task List */}
-          {tasks.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateEmoji}>{'\u{1F3AF}'}</Text>
-              <Text style={styles.emptyStateText}>
-                {isCurrentWeek
-                  ? 'No tasks yet.\nWhat\'s your #1 priority this week?'
-                  : 'No tasks this week.'}
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={tasks}
-              keyExtractor={(item) => item.id.toString()}
-              style={styles.taskList}
-              contentContainerStyle={styles.taskListContent}
-              renderItem={({ item, index }) => (
-                <View style={[styles.taskItem, item.done && styles.taskItemDone]}>
-                  <TouchableOpacity
-                    style={[styles.checkbox, item.done && styles.checkboxDone]}
-                    onPress={() => handleToggleTask(item.id)}
-                  >
-                    {item.done && <Text style={styles.checkmark}>{'\u2713'}</Text>}
-                  </TouchableOpacity>
-
-                  <View
-                    style={[styles.priorityIndicator, { backgroundColor: PRIORITY_COLORS[item.priority] }]}
-                  />
-
-                  <View style={styles.taskContent}>
-                    <Text style={[styles.taskTitle, item.done && styles.taskTitleDone]}>
-                      {item.title}
-                    </Text>
-                    <Text style={styles.taskNumber}>#{index + 1} of 5</Text>
-                  </View>
-
-                  {isCurrentWeek && (
+                      <Text style={styles.taskQuadrantText}>{QUADRANT_INFO[task.quadrant].label}</Text>
+                    </View>
+                    <View style={styles.taskContent}>
+                      <Text style={styles.taskTitle}>{task.title}</Text>
+                      <View style={styles.taskMeta}>
+                        {category && (
+                          <Text style={[styles.taskCategory, { color: category.color }]}>
+                            {category.icon} {category.name}
+                          </Text>
+                        )}
+                        <Text style={styles.taskDuration}>{formatDuration(task.duration)}</Text>
+                      </View>
+                    </View>
                     <TouchableOpacity
                       style={styles.deleteButton}
-                      onPress={() => handleDeleteTask(item.id)}
+                      onPress={() => handleDeleteTask(task.id)}
                     >
                       <Text style={styles.deleteButtonText}>{'\u00D7'}</Text>
                     </TouchableOpacity>
-                  )}
-                </View>
-              )}
-            />
+                  </View>
+                );
+              })}
+            </View>
           )}
-        </>
-      ) : (
-        /* History Tab */
-        <ScrollView style={styles.historyContainer} contentContainerStyle={styles.historyContent}>
-          {historyData.length === 0 ? (
+        </ScrollView>
+      )}
+
+      {/* History Tab */}
+      {activeTab === 'history' && (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {recentDays.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateEmoji}>{'\u{1F4C5}'}</Text>
               <Text style={styles.emptyStateText}>
-                No history yet.{'\n'}Complete your first week to see it here!
+                No history yet.{'\n'}Start logging activities to see your patterns.
               </Text>
             </View>
           ) : (
             <>
-              <View style={styles.historyHeader}>
-                <Text style={styles.historyTitle}>Your Journey</Text>
-                <Text style={styles.historySubtitle}>
-                  {historyData.length} week{historyData.length !== 1 ? 's' : ''} tracked
-                </Text>
-              </View>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Recent Days</Text>
+                {recentDays.map((day) => {
+                  const isToday = day.date === getTodayDate();
+                  return (
+                    <View key={day.date} style={[styles.dayCard, isToday && styles.dayCardToday]}>
+                      <View style={styles.dayHeader}>
+                        <Text style={styles.dayDate}>
+                          {isToday ? 'Today' : formatDate(day.date)}
+                        </Text>
+                        <View style={styles.dayStats}>
+                          <Text
+                            style={[
+                              styles.dayQ2,
+                              day.q2Percentage >= 30 && styles.dayQ2Good,
+                            ]}
+                          >
+                            {day.q2Percentage}% Q2
+                          </Text>
+                          <Text style={styles.dayTotal}>{formatDuration(day.totalMinutes)}</Text>
+                        </View>
+                      </View>
 
-              {historyData.map((weekData) => {
-                const isThisWeek = weekData.week === currentWeek;
-                const completionRate = weekData.stats.total > 0
-                  ? Math.round((weekData.stats.completed / weekData.stats.total) * 100)
-                  : 0;
+                      {/* Mini breakdown bar */}
+                      {day.totalMinutes > 0 && (
+                        <View style={styles.miniBar}>
+                          {([1, 2, 3, 4] as const).map((q) => {
+                            const minutes = day.quadrantMinutes[`q${q}` as keyof typeof day.quadrantMinutes];
+                            const percent = (minutes / day.totalMinutes) * 100;
+                            if (percent === 0) return null;
+                            return (
+                              <View
+                                key={q}
+                                style={[
+                                  styles.miniBarSegment,
+                                  { width: `${percent}%`, backgroundColor: QUADRANT_INFO[q].color },
+                                ]}
+                              />
+                            );
+                          })}
+                        </View>
+                      )}
 
-                return (
-                  <TouchableOpacity
-                    key={weekData.week}
-                    style={[styles.historyCard, isThisWeek && styles.historyCardCurrent]}
-                    onPress={() => {
-                      setSelectedWeek(weekData.week);
-                      setActiveTab('week');
-                    }}
-                  >
-                    <View style={styles.historyCardLeft}>
-                      <Text style={styles.historyWeek}>
-                        {isThisWeek ? 'This Week' : weekData.week}
-                      </Text>
-                      <Text style={styles.historyDates}>
-                        {weekData.dates.start} - {weekData.dates.end}
+                      <Text style={styles.dayTaskCount}>
+                        {day.tasks.length} activit{day.tasks.length === 1 ? 'y' : 'ies'}
                       </Text>
                     </View>
-
-                    <View style={styles.historyCardRight}>
-                      <View style={styles.historyStats}>
-                        <Text style={styles.historyCompletion}>
-                          {weekData.stats.completed}/{weekData.stats.total}
-                        </Text>
-                        <Text style={styles.historyEmoji}>
-                          {getCompletionEmoji(weekData.stats.completed, weekData.stats.total)}
-                        </Text>
-                      </View>
-                      <View style={styles.historyProgressBar}>
-                        <View
-                          style={[
-                            styles.historyProgressFill,
-                            { width: `${completionRate}%` },
-                            completionRate === 100 && styles.historyProgressFillComplete,
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
-              {/* Summary Stats */}
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>All Time Stats</Text>
-                <View style={styles.summaryRow}>
-                  <View style={styles.summaryStat}>
-                    <Text style={styles.summaryNumber}>
-                      {historyData.reduce((sum, w) => sum + w.stats.completed, 0)}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Tasks Shipped</Text>
-                  </View>
-                  <View style={styles.summaryStat}>
-                    <Text style={styles.summaryNumber}>
-                      {historyData.filter(w => w.stats.total > 0 && w.stats.completed === w.stats.total).length}
-                    </Text>
-                    <Text style={styles.summaryLabel}>Perfect Weeks</Text>
-                  </View>
-                  <View style={styles.summaryStat}>
-                    <Text style={styles.summaryNumber}>
-                      {historyData.reduce((sum, w) => sum + w.stats.total, 0) > 0
-                        ? Math.round(
-                            (historyData.reduce((sum, w) => sum + w.stats.completed, 0) /
-                              historyData.reduce((sum, w) => sum + w.stats.total, 0)) *
-                              100
-                          )
-                        : 0}%
-                    </Text>
-                    <Text style={styles.summaryLabel}>Ship Rate</Text>
-                  </View>
-                </View>
+                  );
+                })}
               </View>
             </>
           )}
         </ScrollView>
       )}
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Less is more. Ship what matters.
-        </Text>
-      </View>
+      {/* Categories Tab */}
+      {activeTab === 'categories' && (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Categories</Text>
 
-      {/* Dev Tools - only visible in development */}
+            {categories.map((category) => (
+              <View key={category.id} style={styles.categoryItem}>
+                <View style={[styles.categoryColor, { backgroundColor: category.color }]} />
+                <Text style={styles.categoryIcon}>{category.icon}</Text>
+                <Text style={styles.categoryName}>{category.name}</Text>
+                <TouchableOpacity
+                  style={styles.categoryDelete}
+                  onPress={() => handleDeleteCategory(category.id)}
+                >
+                  <Text style={styles.categoryDeleteText}>{'\u00D7'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <View style={styles.addCategoryRow}>
+              <TextInput
+                style={styles.addCategoryInput}
+                placeholder="New category name..."
+                placeholderTextColor="#6b7280"
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+              />
+              <TouchableOpacity
+                style={[styles.addCategoryButton, !newCategoryName.trim() && styles.addButtonDisabled]}
+                onPress={handleAddCategory}
+                disabled={!newCategoryName.trim()}
+              >
+                <Text style={styles.addCategoryButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Dev Tools */}
       <DevTools onDataReset={loadData} />
     </SafeAreaView>
   );
@@ -459,17 +378,11 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#8b5cf6',
     fontSize: 16,
-    fontWeight: '500',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
   },
   title: {
     fontSize: 32,
@@ -482,32 +395,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 2,
   },
-  streakBadge: {
-    backgroundColor: '#7c3aed20',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#7c3aed40',
-    alignItems: 'center',
-  },
-  streakText: {
-    color: '#a78bfa',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  streakLabel: {
-    color: '#7c3aed',
-    fontSize: 10,
-    fontWeight: '500',
-  },
   tabBar: {
     flexDirection: 'row',
     marginHorizontal: 20,
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 4,
-    marginBottom: 16,
   },
   tab: {
     flex: 1,
@@ -526,202 +419,111 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#ffffff',
   },
-  weekSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#1a1a2e',
-    marginHorizontal: 20,
-    borderRadius: 16,
+  content: {
+    flex: 1,
   },
-  navButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#252542',
-    borderRadius: 12,
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40,
   },
-  navButtonDisabled: {
-    opacity: 0.3,
+  section: {
+    marginBottom: 24,
   },
-  navButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  weekInfo: {
-    alignItems: 'center',
-  },
-  weekText: {
+  sectionTitle: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '700',
+    marginBottom: 12,
   },
-  weekDates: {
-    color: '#6b7280',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  progressContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#8b5cf6',
-    borderRadius: 5,
-  },
-  progressText: {
+  fieldLabel: {
     color: '#9ca3af',
     fontSize: 13,
-    textAlign: 'center',
-    marginTop: 8,
     fontWeight: '500',
-  },
-  addTaskForm: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: '#1a1a2e',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: '#ffffff',
     fontSize: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#252542',
   },
-  formRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  prioritySelector: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  priorityButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    opacity: 0.4,
-  },
-  priorityButtonSelected: {
-    opacity: 1,
-    transform: [{ scale: 1.05 }],
-  },
-  priorityButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   addButton: {
     backgroundColor: '#8b5cf6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
     borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  addButtonDisabled: {
+    backgroundColor: '#3730a3',
+    opacity: 0.5,
   },
   addButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '700',
-  },
-  slotsText: {
-    color: '#4b5563',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  taskList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  taskListContent: {
-    paddingBottom: 20,
   },
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#252542',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
   },
-  taskItemDone: {
-    backgroundColor: '#151525',
-    borderColor: '#1a1a2e',
+  taskQuadrant: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginRight: 12,
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#8b5cf6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  checkboxDone: {
-    backgroundColor: '#8b5cf6',
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  priorityIndicator: {
-    width: 4,
-    height: 32,
-    borderRadius: 2,
-    marginRight: 14,
+  taskQuadrantText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   taskContent: {
     flex: 1,
   },
   taskTitle: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
   },
-  taskTitleDone: {
-    textDecorationLine: 'line-through',
-    color: '#4b5563',
-  },
-  taskNumber: {
-    color: '#4b5563',
-    fontSize: 11,
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginTop: 4,
   },
+  taskCategory: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  taskDuration: {
+    color: '#6b7280',
+    fontSize: 12,
+  },
   deleteButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
   },
   deleteButtonText: {
     color: '#6b7280',
-    fontSize: 28,
-    lineHeight: 28,
+    fontSize: 24,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingVertical: 60,
   },
   emptyStateEmoji: {
     fontSize: 48,
@@ -733,130 +535,118 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-  // History Tab Styles
-  historyContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
+  dayCard: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
   },
-  historyContent: {
-    paddingBottom: 20,
+  dayCardToday: {
+    borderWidth: 1,
+    borderColor: '#8b5cf6',
   },
-  historyHeader: {
-    marginBottom: 16,
-  },
-  historyTitle: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  historySubtitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  historyCard: {
+  dayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  dayDate: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dayStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dayQ2: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dayQ2Good: {
+    color: '#10b981',
+  },
+  dayTotal: {
+    color: '#6b7280',
+    fontSize: 13,
+  },
+  miniBar: {
+    flexDirection: 'row',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: '#252542',
+    marginTop: 10,
+  },
+  miniBarSegment: {
+    height: '100%',
+  },
+  dayTaskCount: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  categoryColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  categoryIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  categoryName: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  categoryDelete: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryDeleteText: {
+    color: '#6b7280',
+    fontSize: 24,
+  },
+  addCategoryRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  addCategoryInput: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#ffffff',
+    fontSize: 15,
     borderWidth: 1,
     borderColor: '#252542',
   },
-  historyCardCurrent: {
-    borderColor: '#8b5cf6',
-    backgroundColor: '#1a1a3e',
-  },
-  historyCardLeft: {
-    flex: 1,
-  },
-  historyWeek: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  historyDates: {
-    color: '#6b7280',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  historyCardRight: {
-    alignItems: 'flex-end',
-    minWidth: 80,
-  },
-  historyStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  historyCompletion: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  historyEmoji: {
-    fontSize: 18,
-    marginLeft: 4,
-  },
-  historyProgressBar: {
-    width: 80,
-    height: 6,
-    backgroundColor: '#252542',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  historyProgressFill: {
-    height: '100%',
+  addCategoryButton: {
     backgroundColor: '#8b5cf6',
-    borderRadius: 3,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
   },
-  historyProgressFillComplete: {
-    backgroundColor: '#10b981',
-  },
-  summaryCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#8b5cf620',
-  },
-  summaryTitle: {
+  addCategoryButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryStat: {
-    alignItems: 'center',
-  },
-  summaryNumber: {
-    color: '#8b5cf6',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  summaryLabel: {
-    color: '#6b7280',
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  footer: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a2e',
-  },
-  footerText: {
-    color: '#4b5563',
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

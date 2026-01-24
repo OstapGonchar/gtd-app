@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { clearAllData, seedDemoData } from '../database';
+import { clearAllData, seedDemoData, initDB } from '../database';
 
 interface DevToolsProps {
   onDataReset: () => void;
@@ -14,11 +14,12 @@ export function DevTools({ onDataReset }: DevToolsProps) {
 
   const handleLoadDemo = async () => {
     const confirmed = Platform.OS === 'web'
-      ? window.confirm('This will replace all tasks with 6 weeks of demo history. Continue?')
+      ? window.confirm('This will replace all data with 2 weeks of demo history. Continue?')
       : true;
 
     if (confirmed) {
       await clearAllData();
+      await initDB(); // Re-seed categories
       await seedDemoData(true);
       onDataReset();
     }
@@ -26,11 +27,12 @@ export function DevTools({ onDataReset }: DevToolsProps) {
 
   const handleClearAll = async () => {
     const confirmed = Platform.OS === 'web'
-      ? window.confirm('This will delete ALL tasks permanently. Continue?')
+      ? window.confirm('This will delete ALL data permanently. Continue?')
       : true;
 
     if (confirmed) {
       await clearAllData();
+      await initDB(); // Re-seed categories
       onDataReset();
     }
   };
