@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cornerCell: {
-    width: 50,
+    width: 24,
   },
   headerCell: {
     flex: 1,
@@ -137,17 +137,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sideHeader: {
-    width: 50,
+    width: 24,
     justifyContent: 'center',
-    paddingRight: 6,
+    alignItems: 'center',
   },
   sideHeaderText: {
     color: '#6b7280',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.3,
-    textAlign: 'right',
-    lineHeight: 11,
+    textAlign: 'center',
+    transform: [{ rotate: '-90deg' }],
+    width: 70,
   },
   cell: {
     flex: 1,

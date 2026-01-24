@@ -28,15 +28,14 @@ import {
   updateSettings,
 } from './src/database';
 import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './src/types';
-import { QuadrantPicker } from './src/components/QuadrantPicker';
-import { CategoryPicker } from './src/components/CategoryPicker';
-import { DurationPicker } from './src/components/DurationPicker';
 import { Q2Progress } from './src/components/Q2Progress';
 import { DevTools } from './src/components/DevTools';
 import { CalendarView } from './src/components/CalendarView';
 import { DayDetailModal } from './src/components/DayDetailModal';
 import { StreakBadge } from './src/components/StreakBadge';
 import { IconPicker } from './src/components/IconPicker';
+import { AddTaskModal } from './src/components/AddTaskModal';
+import { DurationPicker } from './src/components/DurationPicker';
 
 type TabType = 'today' | 'history' | 'categories' | 'settings';
 
@@ -55,13 +54,10 @@ export default function App() {
   const [monthSummaries, setMonthSummaries] = useState<Map<string, DaySummary>>(new Map());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDaySummary, setSelectedDaySummary] = useState<DaySummary | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDayModalVisible, setIsDayModalVisible] = useState(false);
 
-  // Task entry form
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskQuadrant, setTaskQuadrant] = useState<Quadrant | null>(null);
-  const [taskCategory, setTaskCategory] = useState<string | null>(null);
-  const [taskDuration, setTaskDuration] = useState(30);
+  // Add task modal
+  const [isAddTaskModalVisible, setIsAddTaskModalVisible] = useState(false);
 
   // Category form
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -81,12 +77,7 @@ export default function App() {
     setTodaySummary(today);
     setStreak(streakInfo);
     setSettings(appSettings);
-
-    // Set default category if none selected
-    if (!taskCategory && cats.length > 0) {
-      setTaskCategory(cats[0].id);
-    }
-  }, [taskCategory]);
+  }, []);
 
   const loadMonthData = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -114,13 +105,8 @@ export default function App() {
     }
   }, [isLoading, loadMonthData]);
 
-  const handleAddTask = async () => {
-    if (!taskTitle.trim() || !taskQuadrant || !taskCategory) return;
-
-    await addTask(taskTitle.trim(), taskQuadrant, taskCategory, taskDuration);
-    setTaskTitle('');
-    setTaskQuadrant(null);
-    // Keep category and duration as defaults for next entry
+  const handleAddTask = async (title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
+    await addTask(title, quadrant, categoryId, duration);
     loadData();
   };
 
@@ -152,7 +138,7 @@ export default function App() {
     } else {
       setSelectedDaySummary({ date, tasks: [], totalMinutes: 0, quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 }, q2Percentage: 0 });
     }
-    setIsModalVisible(true);
+    setIsDayModalVisible(true);
   };
 
   const handleMonthChange = (date: Date) => {
@@ -160,11 +146,21 @@ export default function App() {
   };
 
   const handleAddDurationPreset = async () => {
-    const value = parseInt(newDurationValue, 10);
-    if (isNaN(value) || value <= 0 || value > 480) return;
-    if (settings.durationPresets.includes(value)) return;
+    const input = newDurationValue.trim().toLowerCase();
+    let minutes: number;
 
-    const newPresets = [...settings.durationPresets, value].sort((a, b) => a - b);
+    // Parse formats: "3h", "3hr", "3 hours", "90m", "90min", "90 minutes", or just "90"
+    if (input.includes('h')) {
+      const hours = parseFloat(input.replace(/[^0-9.]/g, ''));
+      minutes = Math.round(hours * 60);
+    } else {
+      minutes = parseInt(input.replace(/[^0-9]/g, ''), 10);
+    }
+
+    if (isNaN(minutes) || minutes <= 0 || minutes > 480) return;
+    if (settings.durationPresets.includes(minutes)) return;
+
+    const newPresets = [...settings.durationPresets, minutes].sort((a, b) => a - b);
     await updateSettings({ durationPresets: newPresets });
     setSettings({ ...settings, durationPresets: newPresets });
     setNewDurationValue('');
@@ -200,8 +196,6 @@ export default function App() {
     );
   }
 
-  const canAddTask = taskTitle.trim() && taskQuadrant && taskCategory;
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -232,93 +226,87 @@ export default function App() {
 
       {/* Today Tab */}
       {activeTab === 'today' && (
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {/* Today's Progress */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{formatDate(getTodayDate())}</Text>
-            {todaySummary && (
-              <Q2Progress
-                quadrantMinutes={todaySummary.quadrantMinutes}
-                totalMinutes={todaySummary.totalMinutes}
-                q2Percentage={todaySummary.q2Percentage}
-              />
-            )}
-          </View>
-
-          {/* Add Task Form */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Log Activity</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="What did you work on?"
-              placeholderTextColor="#6b7280"
-              value={taskTitle}
-              onChangeText={setTaskTitle}
-            />
-
-            <Text style={styles.fieldLabel}>Quadrant</Text>
-            <QuadrantPicker selected={taskQuadrant} onSelect={setTaskQuadrant} />
-
-            <Text style={styles.fieldLabel}>Category</Text>
-            <CategoryPicker
-              categories={categories}
-              selected={taskCategory}
-              onSelect={setTaskCategory}
-            />
-
-            <Text style={styles.fieldLabel}>Duration</Text>
-            <DurationPicker selected={taskDuration} onSelect={setTaskDuration} presets={settings.durationPresets} />
-
-            <TouchableOpacity
-              style={[styles.addButton, !canAddTask && styles.addButtonDisabled]}
-              onPress={handleAddTask}
-              disabled={!canAddTask}
-            >
-              <Text style={styles.addButtonText}>+ Log Activity</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Today's Tasks */}
-          {todaySummary && todaySummary.tasks.length > 0 && (
+        <View style={styles.todayContainer}>
+          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            {/* Today's Progress */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Today's Log</Text>
-              {todaySummary.tasks.map((task) => {
-                const category = getCategoryById(task.categoryId);
-                return (
-                  <View key={task.id} style={styles.taskItem}>
-                    <View
-                      style={[
-                        styles.taskQuadrant,
-                        { backgroundColor: QUADRANT_INFO[task.quadrant].color },
-                      ]}
-                    >
-                      <Text style={styles.taskQuadrantText}>{QUADRANT_INFO[task.quadrant].label}</Text>
-                    </View>
-                    <View style={styles.taskContent}>
-                      <Text style={styles.taskTitle}>{task.title}</Text>
-                      <View style={styles.taskMeta}>
-                        {category && (
-                          <Text style={[styles.taskCategory, { color: category.color }]}>
-                            {category.icon} {category.name}
-                          </Text>
-                        )}
-                        <Text style={styles.taskDuration}>{formatDuration(task.duration)}</Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteTask(task.id)}
-                    >
-                      <Text style={styles.deleteButtonText}>{'\u00D7'}</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+              <Text style={styles.sectionTitle}>{formatDate(getTodayDate())}</Text>
+              {todaySummary && (
+                <Q2Progress
+                  quadrantMinutes={todaySummary.quadrantMinutes}
+                  totalMinutes={todaySummary.totalMinutes}
+                  q2Percentage={todaySummary.q2Percentage}
+                />
+              )}
             </View>
-          )}
-        </ScrollView>
+
+            {/* Today's Tasks */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {todaySummary && todaySummary.tasks.length > 0
+                  ? `Today's Log (${todaySummary.tasks.length})`
+                  : "Today's Log"}
+              </Text>
+              {todaySummary && todaySummary.tasks.length > 0 ? (
+                todaySummary.tasks.map((task) => {
+                  const category = getCategoryById(task.categoryId);
+                  return (
+                    <View key={task.id} style={styles.taskItem}>
+                      <View
+                        style={[
+                          styles.taskQuadrant,
+                          { backgroundColor: QUADRANT_INFO[task.quadrant].color },
+                        ]}
+                      >
+                        <Text style={styles.taskQuadrantText}>{QUADRANT_INFO[task.quadrant].label}</Text>
+                      </View>
+                      <View style={styles.taskContent}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <View style={styles.taskMeta}>
+                          {category && (
+                            <Text style={[styles.taskCategory, { color: category.color }]}>
+                              {category.icon} {category.name}
+                            </Text>
+                          )}
+                          <Text style={styles.taskDuration}>{formatDuration(task.duration)}</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteTask(task.id)}
+                      >
+                        <Text style={styles.deleteButtonText}>{'\u00D7'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyTodayState}>
+                  <Text style={styles.emptyTodayText}>No activities logged yet</Text>
+                  <Text style={styles.emptyTodaySubtext}>Tap + to log your first activity</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+
+          {/* Floating Add Button */}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setIsAddTaskModalVisible(true)}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        </View>
       )}
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        visible={isAddTaskModalVisible}
+        categories={categories}
+        durationPresets={settings.durationPresets}
+        onClose={() => setIsAddTaskModalVisible(false)}
+        onAdd={handleAddTask}
+      />
 
       {/* History Tab */}
       {activeTab === 'history' && (
@@ -336,10 +324,10 @@ export default function App() {
 
       {/* Day Detail Modal */}
       <DayDetailModal
-        visible={isModalVisible}
+        visible={isDayModalVisible}
         daySummary={selectedDaySummary}
         categories={categories}
-        onClose={() => setIsModalVisible(false)}
+        onClose={() => setIsDayModalVisible(false)}
       />
 
       {/* Categories Tab */}
@@ -413,7 +401,7 @@ export default function App() {
             <View style={styles.addPresetRow}>
               <TextInput
                 style={styles.addPresetInput}
-                placeholder="Minutes (e.g., 45)"
+                placeholder="e.g. 45, 1.5h, 2h"
                 placeholderTextColor="#6b7280"
                 value={newDurationValue}
                 onChangeText={setNewDurationValue}
@@ -525,7 +513,48 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
+  },
+  todayContainer: {
+    flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#8b5cf6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabText: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '300',
+    marginTop: -2,
+  },
+  emptyTodayState: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyTodayText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptyTodaySubtext: {
+    color: '#6b7280',
+    fontSize: 14,
   },
   section: {
     marginBottom: 24,
