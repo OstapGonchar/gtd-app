@@ -10,6 +10,7 @@ import {
 import { DaySummary, Category, QUADRANT_INFO } from '../types';
 import { formatDate, formatDuration } from '../database';
 import { Q2Progress } from './Q2Progress';
+import { EisenhowerMatrix } from './EisenhowerMatrix';
 
 interface DayDetailModalProps {
   visible: boolean;
@@ -76,6 +77,11 @@ export function DayDetailModal({
                 <Text style={styles.summaryValue}>{daySummary.tasks.length}</Text>
                 <Text style={styles.summaryLabel}>Activities</Text>
               </View>
+            </View>
+
+            {/* Matrix Reference */}
+            <View style={styles.matrixSection}>
+              <EisenhowerMatrix compact />
             </View>
 
             {/* Tasks List */}
@@ -195,6 +201,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 12,
     marginTop: 4,
+  },
+  matrixSection: {
+    marginTop: 16,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 12,
   },
   sectionTitle: {
     color: '#ffffff',
