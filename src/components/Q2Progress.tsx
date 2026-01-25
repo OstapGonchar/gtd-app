@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { QuadrantBreakdown, QUADRANT_INFO } from '../types';
 import { formatDuration } from '../database';
+
+// Import Q2 illustration for empty state
+const q2Illustration = require('../../assets/q2-illustration.png');
 
 interface Q2ProgressProps {
   quadrantMinutes: QuadrantBreakdown;
@@ -14,7 +17,13 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
   if (totalMinutes === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No tasks logged yet</Text>
+        <Image
+          source={q2Illustration}
+          style={styles.emptyImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.emptyText}>Ready to focus?</Text>
+        <Text style={styles.emptySubtext}>Log your first activity to see your Q2 progress</Text>
       </View>
     );
   }
@@ -87,57 +96,77 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: '#12121A',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#252542',
   },
   emptyContainer: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: '#12121A',
+    borderRadius: 20,
+    padding: 32,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#252542',
+  },
+  emptyImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+    opacity: 0.9,
   },
   emptyText: {
-    color: '#6b7280',
-    fontSize: 14,
+    color: '#F1F5F9',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    color: '#64748B',
+    fontSize: 13,
+    textAlign: 'center',
   },
   scoreContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   scoreLabel: {
-    color: '#9ca3af',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   scoreValue: {
-    color: '#10b981',
-    fontSize: 48,
+    color: '#10B981',
+    fontSize: 56,
     fontWeight: '800',
+    letterSpacing: -2,
   },
   scoreEmoji: {
-    fontSize: 32,
+    fontSize: 36,
   },
   scoreSubtext: {
-    color: '#6b7280',
-    fontSize: 13,
-    marginTop: 4,
+    color: '#64748B',
+    fontSize: 14,
+    marginTop: 6,
   },
   breakdownContainer: {
-    marginTop: 8,
+    marginTop: 12,
   },
   barContainer: {
     flexDirection: 'row',
-    height: 12,
-    borderRadius: 6,
+    height: 14,
+    borderRadius: 7,
     overflow: 'hidden',
-    backgroundColor: '#252542',
+    backgroundColor: '#1A1A2E',
   },
   barSegment: {
     height: '100%',
@@ -145,22 +174,23 @@ const styles = StyleSheet.create({
   legendContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
+    gap: 16,
+    marginTop: 16,
     justifyContent: 'center',
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   legendText: {
-    color: '#9ca3af',
-    fontSize: 12,
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

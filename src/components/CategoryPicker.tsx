@@ -42,25 +42,25 @@ export function CategoryPicker({ categories, selected, onSelect }: CategoryPicke
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     paddingRight: 20,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#1a1a2e',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#12121A',
     borderWidth: 2,
   },
   icon: {
-    fontSize: 14,
+    fontSize: 16,
   },
   label: {
-    color: '#ffffff',
-    fontSize: 13,
+    color: '#F1F5F9',
+    fontSize: 14,
     fontWeight: '600',
   },
   labelSelected: {

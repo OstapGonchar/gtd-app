@@ -93,16 +93,18 @@ function CompactMatrix() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#12121A',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#1A1A2E',
   },
   headerRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   cornerCell: {
-    width: 60,
+    width: 64,
   },
   headerCell: {
     flex: 1,
@@ -110,7 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   headerText: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
@@ -120,12 +122,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sideHeader: {
-    width: 60,
+    width: 64,
     justifyContent: 'center',
-    paddingRight: 8,
+    paddingRight: 10,
   },
   sideHeaderText: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -133,11 +135,11 @@ const styles = StyleSheet.create({
   },
   quadrantCell: {
     flex: 1,
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    marginHorizontal: 4,
-    minHeight: 80,
+    marginHorizontal: 5,
+    minHeight: 85,
   },
   q2Cell: {
     borderWidth: 2,
@@ -145,59 +147,60 @@ const styles = StyleSheet.create({
   quadrantLabel: {
     fontSize: 14,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   quadrantName: {
-    color: '#ffffff',
+    color: '#F1F5F9',
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   quadrantDesc: {
-    color: '#9ca3af',
+    color: '#94A3B8',
     fontSize: 11,
   },
   starBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#10b981',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   starText: {
     color: '#ffffff',
     fontSize: 8,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
 
 const compactStyles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 8,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
   },
   cell: {
     flex: 1,
-    padding: 10,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
   q2Cell: {
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: '#10B981',
   },
   label: {
     fontSize: 12,
     fontWeight: '800',
   },
   action: {
-    color: '#9ca3af',
-    fontSize: 10,
+    color: '#94A3B8',
+    fontSize: 11,
     fontWeight: '600',
   },
 });

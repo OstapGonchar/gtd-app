@@ -1,6 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Quadrant, QUADRANT_INFO } from '../types';
+
+// Import quadrant illustrations
+const quadrantImages: Record<Quadrant, any> = {
+  1: require('../../assets/q1-illustration.png'),
+  2: require('../../assets/q2-illustration.png'),
+  3: require('../../assets/q3-illustration.png'),
+  4: require('../../assets/q4-illustration.png'),
+};
 
 interface QuadrantPickerProps {
   selected: Quadrant | null;
@@ -74,21 +82,34 @@ function QuadrantCell({ quadrant, isSelected, onSelect, isGoal }: QuadrantCellPr
       style={[
         styles.cell,
         { borderColor: info.color },
-        isSelected && { backgroundColor: info.color, borderWidth: 3 },
+        isSelected && {
+          backgroundColor: info.color,
+          borderWidth: 3,
+          shadowColor: info.color,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.5,
+          shadowRadius: 12,
+          elevation: 8,
+        },
         !isSelected && { backgroundColor: info.color + '15' },
         isGoal && !isSelected && styles.goalCell,
       ]}
       onPress={() => onSelect(quadrant)}
       activeOpacity={0.7}
     >
+      <Image
+        source={quadrantImages[quadrant]}
+        style={[
+          styles.cellImage,
+          isSelected && styles.cellImageSelected,
+        ]}
+        resizeMode="contain"
+      />
       <Text style={[styles.cellLabel, isSelected && styles.cellLabelSelected]}>
         {info.label}
       </Text>
       <Text style={[styles.cellName, isSelected && styles.cellNameSelected, { color: isSelected ? '#fff' : info.color }]}>
         {getCellAction(quadrant)}
-      </Text>
-      <Text style={[styles.cellDesc, isSelected && styles.cellDescSelected]}>
-        {info.description}
       </Text>
       {isGoal && !isSelected && (
         <View style={[styles.goalBadge, { backgroundColor: info.color }]}>
@@ -110,7 +131,7 @@ function getCellAction(quadrant: Quadrant): string {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#12121A',
     borderRadius: 16,
     padding: 12,
   },
@@ -127,7 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   headerText: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -142,7 +163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sideHeaderText: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -152,38 +173,48 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    marginHorizontal: 3,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    marginHorizontal: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
     borderWidth: 2,
     alignItems: 'center',
-    minHeight: 85,
+    minHeight: 100,
     justifyContent: 'center',
   },
   goalCell: {
     borderWidth: 2,
     borderStyle: 'solid',
   },
+  cellImage: {
+    width: 36,
+    height: 36,
+    marginBottom: 6,
+    opacity: 0.9,
+  },
+  cellImageSelected: {
+    opacity: 1,
+    tintColor: '#ffffff',
+  },
   cellLabel: {
-    color: '#9ca3af',
-    fontSize: 11,
+    color: '#94A3B8',
+    fontSize: 10,
     fontWeight: '800',
     marginBottom: 2,
+    letterSpacing: 0.5,
   },
   cellLabelSelected: {
-    color: '#ffffffcc',
+    color: '#ffffffdd',
   },
   cellName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    marginBottom: 2,
   },
   cellNameSelected: {
     color: '#ffffff',
   },
   cellDesc: {
-    color: '#6b7280',
+    color: '#64748B',
     fontSize: 10,
     textAlign: 'center',
   },
@@ -194,13 +225,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   goalText: {
     color: '#ffffff',
     fontSize: 7,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
