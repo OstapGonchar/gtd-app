@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { StreakInfo, QUADRANT_INFO } from '../types';
 import { AllTimeStats, formatDuration } from '../database';
+import { useTheme } from '../ThemeContext';
 
 const streakFire = require('../../assets/streak-fire.png');
 const streak7 = require('../../assets/streak-7.png');
@@ -29,6 +30,8 @@ export function StatsModal({
   allTimeStats,
   onClose,
 }: StatsModalProps) {
+  const { theme } = useTheme();
+
   const getBadgeImage = () => {
     if (streak.currentStreak >= 100) return streak100;
     if (streak.currentStreak >= 30) return streak30;
@@ -37,10 +40,10 @@ export function StatsModal({
   };
 
   const getBadgeColor = () => {
-    if (streak.currentStreak >= 100) return '#F43F5E';
-    if (streak.currentStreak >= 30) return '#A78BFA';
-    if (streak.currentStreak >= 7) return '#10B981';
-    return '#F59E0B';
+    if (streak.currentStreak >= 100) return theme.colors.q1;
+    if (streak.currentStreak >= 30) return theme.colors.primary;
+    if (streak.currentStreak >= 7) return theme.colors.q2;
+    return theme.colors.q3;
   };
 
   const getStreakMessage = () => {
@@ -63,7 +66,7 @@ export function StatsModal({
       return {
         title: 'Ready to begin',
         message: 'Log your first activity to start tracking your focus patterns.',
-        color: '#94A3B8',
+        color: theme.colors.textSecondary,
       };
     }
 
@@ -71,7 +74,7 @@ export function StatsModal({
       return {
         title: 'Excellent focus!',
         message: 'You\'re spending most of your time on important, non-urgent work. This is the ideal pattern for long-term success.',
-        color: '#10B981',
+        color: theme.colors.q2,
       };
     }
 
@@ -79,7 +82,7 @@ export function StatsModal({
       return {
         title: 'Good progress',
         message: 'You have a solid foundation. Try to reduce Q3 activities by delegating or declining non-essential requests.',
-        color: '#10B981',
+        color: theme.colors.q2,
       };
     }
 
@@ -91,7 +94,7 @@ export function StatsModal({
       return {
         title: 'Too much firefighting',
         message: 'High Q1 time indicates reactive work. Invest more in Q2 planning to prevent crises before they happen.',
-        color: '#ef4444',
+        color: theme.colors.q1,
       };
     }
 
@@ -99,7 +102,7 @@ export function StatsModal({
       return {
         title: 'Consider delegating more',
         message: 'You\'re spending a lot of time on urgent but less important tasks. Practice saying no or delegating these activities.',
-        color: '#f59e0b',
+        color: theme.colors.q3,
       };
     }
 
@@ -107,14 +110,14 @@ export function StatsModal({
       return {
         title: 'Watch time-wasters',
         message: 'Reduce Q4 activities and redirect that time to Q2 strategic work.',
-        color: '#6b7280',
+        color: theme.colors.q4,
       };
     }
 
     return {
       title: 'Room to improve',
       message: 'Focus on scheduling more time for important, non-urgent work (Q2) to achieve better long-term results.',
-      color: '#f59e0b',
+      color: theme.colors.q3,
     };
   };
 
@@ -133,13 +136,16 @@ export function StatsModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>{'\u00D7'}</Text>
+          <View style={[styles.header, { borderBottomColor: theme.colors.surface }]}>
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.closeButtonText, { color: theme.colors.text }]}>{'\u00D7'}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Your Stats</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Your Stats</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -154,36 +160,36 @@ export function StatsModal({
               <Text style={[styles.streakCount, { color: getBadgeColor() }]}>
                 {streak.currentStreak}
               </Text>
-              <Text style={styles.streakLabel}>day streak</Text>
-              <Text style={styles.streakMessage}>{getStreakMessage()}</Text>
+              <Text style={[styles.streakLabel, { color: theme.colors.textMuted }]}>day streak</Text>
+              <Text style={[styles.streakMessage, { color: theme.colors.textSecondary }]}>{getStreakMessage()}</Text>
             </View>
 
             {/* Streak Stats Row */}
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{streak.longestStreak}</Text>
-                <Text style={styles.statLabel}>Best Streak</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>{streak.longestStreak}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Best Streak</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{allTimeStats.totalDays}</Text>
-                <Text style={styles.statLabel}>Active Days</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>{allTimeStats.totalDays}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Active Days</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{allTimeStats.totalTasks}</Text>
-                <Text style={styles.statLabel}>Activities</Text>
+                <Text style={[styles.statValue, { color: theme.colors.text }]}>{allTimeStats.totalTasks}</Text>
+                <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Activities</Text>
               </View>
             </View>
 
             {/* All-Time Distribution */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>All-Time Distribution</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>All-Time Distribution</Text>
 
               {allTimeStats.totalMinutes > 0 ? (
                 <>
                   {/* Progress Bar */}
-                  <View style={styles.barContainer}>
+                  <View style={[styles.barContainer, { backgroundColor: theme.colors.surfaceAlt }]}>
                     {([1, 2, 3, 4] as const).map((q) => {
                       const percent = getQuadrantPercent(`q${q}` as keyof typeof allTimeStats.quadrantMinutes);
                       if (percent === 0) return null;
@@ -208,17 +214,17 @@ export function StatsModal({
                       const minutes = allTimeStats.quadrantMinutes[`q${q}` as keyof typeof allTimeStats.quadrantMinutes];
                       const percent = getQuadrantPercent(`q${q}` as keyof typeof allTimeStats.quadrantMinutes);
                       return (
-                        <View key={q} style={styles.quadrantItem}>
+                        <View key={q} style={[styles.quadrantItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                           <View style={[styles.quadrantDot, { backgroundColor: QUADRANT_INFO[q].color }]} />
                           <View style={styles.quadrantInfo}>
-                            <Text style={styles.quadrantLabel}>{QUADRANT_INFO[q].label}</Text>
-                            <Text style={styles.quadrantName}>{QUADRANT_INFO[q].name}</Text>
+                            <Text style={[styles.quadrantLabel, { color: theme.colors.text }]}>{QUADRANT_INFO[q].label}</Text>
+                            <Text style={[styles.quadrantName, { color: theme.colors.textMuted }]}>{QUADRANT_INFO[q].name}</Text>
                           </View>
                           <View style={styles.quadrantStats}>
-                            <Text style={[styles.quadrantPercent, q === 2 && styles.q2Highlight]}>
+                            <Text style={[styles.quadrantPercent, { color: theme.colors.text }, q === 2 && { color: theme.colors.q2 }]}>
                               {percent}%
                             </Text>
-                            <Text style={styles.quadrantTime}>{formatDuration(minutes)}</Text>
+                            <Text style={[styles.quadrantTime, { color: theme.colors.textMuted }]}>{formatDuration(minutes)}</Text>
                           </View>
                         </View>
                       );
@@ -227,25 +233,25 @@ export function StatsModal({
 
                   {/* Average Stats */}
                   <View style={styles.avgRow}>
-                    <View style={styles.avgItem}>
-                      <Text style={styles.avgValue}>{formatDuration(allTimeStats.avgDailyMinutes)}</Text>
-                      <Text style={styles.avgLabel}>Avg daily time</Text>
+                    <View style={[styles.avgItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      <Text style={[styles.avgValue, { color: theme.colors.text }]}>{formatDuration(allTimeStats.avgDailyMinutes)}</Text>
+                      <Text style={[styles.avgLabel, { color: theme.colors.textMuted }]}>Avg daily time</Text>
                     </View>
-                    <View style={styles.avgItem}>
-                      <Text style={[styles.avgValue, styles.q2Highlight]}>{allTimeStats.avgDailyQ2Percentage}%</Text>
-                      <Text style={styles.avgLabel}>Avg daily Q2</Text>
+                    <View style={[styles.avgItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      <Text style={[styles.avgValue, { color: theme.colors.q2 }]}>{allTimeStats.avgDailyQ2Percentage}%</Text>
+                      <Text style={[styles.avgLabel, { color: theme.colors.textMuted }]}>Avg daily Q2</Text>
                     </View>
                   </View>
                 </>
               ) : (
-                <Text style={styles.emptyText}>No data yet. Start logging activities to see your distribution.</Text>
+                <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No data yet. Start logging activities to see your distribution.</Text>
               )}
             </View>
 
             {/* Guidance Section */}
-            <View style={[styles.guidanceSection, { borderColor: guidance.color + '40' }]}>
+            <View style={[styles.guidanceSection, { backgroundColor: theme.colors.surface, borderColor: guidance.color + '40' }]}>
               <Text style={[styles.guidanceTitle, { color: guidance.color }]}>{guidance.title}</Text>
-              <Text style={styles.guidanceMessage}>{guidance.message}</Text>
+              <Text style={[styles.guidanceMessage, { color: theme.colors.textSecondary }]}>{guidance.message}</Text>
             </View>
           </ScrollView>
         </View>
@@ -261,7 +267,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0A0A0F',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '90%',
@@ -274,25 +279,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#12121A',
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#12121A',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   closeButtonText: {
-    color: '#F1F5F9',
     fontSize: 24,
     lineHeight: 24,
   },
   headerTitle: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
@@ -318,24 +318,20 @@ const styles = StyleSheet.create({
     letterSpacing: -2,
   },
   streakLabel: {
-    color: '#64748B',
     fontSize: 16,
     fontWeight: '500',
     marginTop: -4,
   },
   streakMessage: {
-    color: '#94A3B8',
     fontSize: 14,
     fontWeight: '600',
     marginTop: 12,
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: '#12121A',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   statItem: {
     flex: 1,
@@ -343,15 +339,12 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#1A1A2E',
   },
   statValue: {
-    color: '#F1F5F9',
     fontSize: 24,
     fontWeight: '700',
   },
   statLabel: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 4,
   },
@@ -359,7 +352,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   sectionTitle: {
-    color: '#F1F5F9',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 16,
@@ -370,7 +362,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: '#1A1A2E',
     marginBottom: 20,
   },
   barSegment: {
@@ -382,11 +373,9 @@ const styles = StyleSheet.create({
   quadrantItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12121A',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   quadrantDot: {
     width: 12,
@@ -398,12 +387,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   quadrantLabel: {
-    color: '#F1F5F9',
     fontSize: 14,
     fontWeight: '700',
   },
   quadrantName: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 2,
   },
@@ -411,15 +398,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   quadrantPercent: {
-    color: '#F1F5F9',
     fontSize: 16,
     fontWeight: '700',
   },
-  q2Highlight: {
-    color: '#10B981',
-  },
   quadrantTime: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 2,
   },
@@ -430,25 +412,20 @@ const styles = StyleSheet.create({
   },
   avgItem: {
     flex: 1,
-    backgroundColor: '#12121A',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   avgValue: {
-    color: '#F1F5F9',
     fontSize: 20,
     fontWeight: '700',
   },
   avgLabel: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 4,
   },
   emptyText: {
-    color: '#64748B',
     fontSize: 14,
     textAlign: 'center',
     padding: 20,
@@ -456,7 +433,6 @@ const styles = StyleSheet.create({
   guidanceSection: {
     marginTop: 24,
     marginBottom: 20,
-    backgroundColor: '#12121A',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
@@ -467,7 +443,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   guidanceMessage: {
-    color: '#94A3B8',
     fontSize: 14,
     lineHeight: 21,
   },

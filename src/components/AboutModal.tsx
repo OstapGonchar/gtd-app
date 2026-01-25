@@ -8,13 +8,16 @@ import {
   Image,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 
 const onboard1 = require('../../assets/onboard-1.png');
 const onboard2 = require('../../assets/onboard-2.png');
 const onboard3 = require('../../assets/onboard-3.png');
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+// Use fixed pixel values instead of percentages for better mobile compatibility
+const MODAL_MAX_HEIGHT = Platform.OS === 'web' ? screenHeight * 0.9 : screenHeight * 0.85;
 
 interface AboutModalProps {
   visible: boolean;
@@ -62,6 +65,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps) {
       animationType="fade"
       transparent={true}
       onRequestClose={onClose}
+      statusBarTranslucent={Platform.OS === 'android'}
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
@@ -78,6 +82,8 @@ export function AboutModal({ visible, onClose }: AboutModalProps) {
             style={styles.content}
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            bounces={true}
           >
             {/* Inspirational Quote */}
             <View style={styles.quoteSection}>
@@ -199,12 +205,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 50 : 30,
   },
   container: {
     backgroundColor: '#0A0A0F',
     borderRadius: 24,
     width: Math.min(screenWidth - 32, 500),
-    maxHeight: '90%',
+    maxHeight: MODAL_MAX_HEIGHT,
     overflow: 'hidden',
   },
   header: {

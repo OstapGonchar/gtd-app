@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Category } from '../types';
+import { useTheme } from '../ThemeContext';
 
 interface CategoryPickerProps {
   categories: Category[];
@@ -9,6 +10,8 @@ interface CategoryPickerProps {
 }
 
 export function CategoryPicker({ categories, selected, onSelect }: CategoryPickerProps) {
+  const { theme } = useTheme();
+
   return (
     <ScrollView
       horizontal
@@ -23,13 +26,13 @@ export function CategoryPicker({ categories, selected, onSelect }: CategoryPicke
             key={category.id}
             style={[
               styles.button,
-              { borderColor: category.color },
+              { backgroundColor: theme.colors.surface, borderColor: category.color },
               isSelected && { backgroundColor: category.color },
             ]}
             onPress={() => onSelect(category.id)}
           >
             {category.icon && <Text style={styles.icon}>{category.icon}</Text>}
-            <Text style={[styles.label, isSelected && styles.labelSelected]}>
+            <Text style={[styles.label, { color: theme.colors.text }, isSelected && styles.labelSelected]}>
               {category.name}
             </Text>
           </TouchableOpacity>
@@ -52,14 +55,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#12121A',
     borderWidth: 2,
   },
   icon: {
     fontSize: 16,
   },
   label: {
-    color: '#F1F5F9',
     fontSize: 14,
     fontWeight: '600',
   },

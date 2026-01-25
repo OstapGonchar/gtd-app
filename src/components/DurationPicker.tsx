@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DEFAULT_DURATION_PRESETS } from '../types';
 import { formatDuration } from '../database';
+import { useTheme } from '../ThemeContext';
 
 interface DurationPickerProps {
   selected: number;
@@ -10,6 +11,7 @@ interface DurationPickerProps {
 }
 
 export function DurationPicker({ selected, onSelect, presets }: DurationPickerProps) {
+  const { theme } = useTheme();
   const durationPresets = presets ?? DEFAULT_DURATION_PRESETS;
   const isPreset = durationPresets.includes(selected);
 
@@ -21,17 +23,21 @@ export function DurationPicker({ selected, onSelect, presets }: DurationPickerPr
         return (
           <TouchableOpacity
             key={duration}
-            style={[styles.button, isSelected && styles.buttonSelected]}
+            style={[
+              styles.button,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+              isSelected && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+            ]}
             onPress={() => onSelect(duration)}
           >
-            <Text style={[styles.label, isSelected && styles.labelSelected]}>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }, isSelected && styles.labelSelected]}>
               {formatDuration(duration)}
             </Text>
           </TouchableOpacity>
         );
       })}
       {!isPreset && selected > 0 && (
-        <View style={[styles.button, styles.buttonSelected]}>
+        <View style={[styles.button, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}>
           <Text style={[styles.label, styles.labelSelected]}>
             {formatDuration(selected)}
           </Text>
@@ -51,21 +57,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
-    backgroundColor: '#12121A',
     borderWidth: 1,
-    borderColor: '#252542',
-  },
-  buttonSelected: {
-    backgroundColor: '#A78BFA',
-    borderColor: '#A78BFA',
-    shadowColor: '#A78BFA',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
   },
   label: {
-    color: '#94A3B8',
     fontSize: 14,
     fontWeight: '600',
   },

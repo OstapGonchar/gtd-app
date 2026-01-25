@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '../ThemeContext';
 
 interface CalendarDayCellProps {
   day: number | null;
@@ -20,6 +21,8 @@ export function CalendarDayCell({
   isSelected,
   onPress,
 }: CalendarDayCellProps) {
+  const { theme, isDark } = useTheme();
+
   if (day === null || date === null) {
     return <View style={styles.cell} />;
   }
@@ -31,10 +34,10 @@ export function CalendarDayCell({
     <TouchableOpacity
       style={[
         styles.cell,
-        hasData && styles.cellWithData,
-        hasData && { backgroundColor: getBackgroundColor(intensity) },
-        isToday && styles.cellToday,
-        isSelected && styles.cellSelected,
+        hasData && [styles.cellWithData, { borderColor: theme.colors.border }],
+        hasData && { backgroundColor: getBackgroundColor(intensity, isDark) },
+        isToday && [styles.cellToday, { borderColor: theme.colors.primary }],
+        isSelected && { borderWidth: 2, borderColor: theme.colors.text },
       ]}
       onPress={() => onPress(date)}
       activeOpacity={0.7}
@@ -42,8 +45,9 @@ export function CalendarDayCell({
       <Text
         style={[
           styles.dayNumber,
-          hasData && styles.dayNumberWithData,
-          isToday && styles.dayNumberToday,
+          { color: theme.colors.textMuted },
+          hasData && { color: theme.colors.text, fontWeight: '600' },
+          isToday && { color: theme.colors.primary, fontWeight: '700' },
         ]}
       >
         {day}
@@ -70,14 +74,26 @@ function getIntensity(q2Percentage: number): number {
   return 0;
 }
 
-function getBackgroundColor(intensity: number): string {
-  const colors = [
+function getBackgroundColor(intensity: number, isDark: boolean): string {
+  // Dark theme colors (darker green gradations)
+  const darkColors = [
     '#1a1a2e', // 0 - no data
     '#0d2818', // 1 - low Q2
     '#134e28', // 2 - medium Q2
     '#166534', // 3 - good Q2
     '#15803d', // 4 - excellent Q2
   ];
+
+  // Light theme colors (lighter green gradations)
+  const lightColors = [
+    '#f1f5f9', // 0 - no data
+    '#dcfce7', // 1 - low Q2
+    '#bbf7d0', // 2 - medium Q2
+    '#86efac', // 3 - good Q2
+    '#4ade80', // 4 - excellent Q2
+  ];
+
+  const colors = isDark ? darkColors : lightColors;
   return colors[intensity] || colors[0];
 }
 
@@ -99,33 +115,17 @@ const styles = StyleSheet.create({
   },
   cellWithData: {
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   cellToday: {
     borderWidth: 2,
-    borderColor: '#A78BFA',
-    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 3,
   },
-  cellSelected: {
-    borderWidth: 2,
-    borderColor: '#F1F5F9',
-  },
   dayNumber: {
-    color: '#64748B',
     fontSize: 14,
     fontWeight: '500',
-  },
-  dayNumberWithData: {
-    color: '#F1F5F9',
-    fontWeight: '600',
-  },
-  dayNumberToday: {
-    color: '#A78BFA',
-    fontWeight: '700',
   },
   indicator: {
     position: 'absolute',

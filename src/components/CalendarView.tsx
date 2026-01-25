@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { DaySummary, StreakInfo } from '../types';
 import { formatDuration, getTodayDate } from '../database';
 import { CalendarDayCell } from './CalendarDayCell';
+import { useTheme } from '../ThemeContext';
 
 interface CalendarViewProps {
   monthSummaries: Map<string, DaySummary>;
@@ -23,6 +24,7 @@ export function CalendarView({
   streak,
   selectedDate,
 }: CalendarViewProps) {
+  const { theme } = useTheme();
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const today = getTodayDate();
@@ -49,42 +51,42 @@ export function CalendarView({
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       {/* Month Navigation */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.navButton} onPress={goToPrevMonth}>
-          <Text style={styles.navButtonText}>{'<'}</Text>
+        <TouchableOpacity style={[styles.navButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]} onPress={goToPrevMonth}>
+          <Text style={[styles.navButtonText, { color: theme.colors.text }]}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.monthTitle}>{monthName}</Text>
-        <TouchableOpacity style={styles.navButton} onPress={goToNextMonth}>
-          <Text style={styles.navButtonText}>{'>'}</Text>
+        <Text style={[styles.monthTitle, { color: theme.colors.text }]}>{monthName}</Text>
+        <TouchableOpacity style={[styles.navButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]} onPress={goToNextMonth}>
+          <Text style={[styles.navButtonText, { color: theme.colors.text }]}>{'>'}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Month Stats */}
-      <View style={styles.statsContainer}>
+      <View style={[styles.statsContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {monthStats.q2Percentage}% <Text style={styles.statLabel}>Q2</Text>
+            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
+              {monthStats.q2Percentage}% <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Q2</Text>
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {formatDuration(monthStats.totalMinutes)} <Text style={styles.statLabel}>total</Text>
+            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
+              {formatDuration(monthStats.totalMinutes)} <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>total</Text>
             </Text>
           </View>
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {monthStats.activeDays} <Text style={styles.statLabel}>active days</Text>
+            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
+              {monthStats.activeDays} <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>active days</Text>
             </Text>
           </View>
           {streak.currentStreak > 0 && (
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {streak.currentStreak} <Text style={styles.statLabel}>day streak</Text>
+              <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
+                {streak.currentStreak} <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>day streak</Text>
               </Text>
             </View>
           )}
@@ -95,7 +97,7 @@ export function CalendarView({
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map((day) => (
           <View key={day} style={styles.weekdayCell}>
-            <Text style={styles.weekdayText}>{day}</Text>
+            <Text style={[styles.weekdayText, { color: theme.colors.textMuted }]}>{day}</Text>
           </View>
         ))}
       </View>
@@ -191,11 +193,9 @@ function calculateMonthStats(summaries: Map<string, DaySummary>) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#12121A',
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   header: {
     flexDirection: 'row',
@@ -207,30 +207,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1A1A2E',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#252542',
   },
   navButtonText: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '600',
   },
   monthTitle: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   statsContainer: {
-    backgroundColor: '#1A1A2E',
     borderRadius: 14,
     padding: 14,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   statsRow: {
     flexDirection: 'row',
@@ -241,12 +235,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    color: '#10B981',
     fontSize: 15,
     fontWeight: '700',
   },
   statLabel: {
-    color: '#94A3B8',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -260,7 +252,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   weekdayText: {
-    color: '#64748B',
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.3,

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { QuadrantBreakdown, QUADRANT_INFO } from '../types';
 import { formatDuration } from '../database';
+import { useTheme } from '../ThemeContext';
 
 // Import Q2 illustration for empty state
 const q2Illustration = require('../../assets/q2-illustration.png');
@@ -14,16 +15,18 @@ interface Q2ProgressProps {
 }
 
 export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBreakdown = true }: Q2ProgressProps) {
+  const { theme } = useTheme();
+
   if (totalMinutes === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Image
           source={q2Illustration}
           style={styles.emptyImage}
           resizeMode="contain"
         />
-        <Text style={styles.emptyText}>Ready to focus?</Text>
-        <Text style={styles.emptySubtext}>Log your first activity to see your Q2 progress</Text>
+        <Text style={[styles.emptyText, { color: theme.colors.text }]}>Ready to focus?</Text>
+        <Text style={[styles.emptySubtext, { color: theme.colors.textMuted }]}>Log your first activity to see your Q2 progress</Text>
       </View>
     );
   }
@@ -37,13 +40,13 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
 
   const getGuidanceText = () => {
     if (q2Percentage >= 40) {
-      return { text: 'Excellent focus!', color: '#10B981' };
+      return { text: 'Excellent focus!', color: theme.colors.q2 };
     }
     if (q2Percentage >= 30) {
-      return { text: 'Good progress, keep it up!', color: '#10B981' };
+      return { text: 'Good progress, keep it up!', color: theme.colors.q2 };
     }
     if (q2Percentage >= 20) {
-      return { text: 'Room to improve Q2 time', color: '#F59E0B' };
+      return { text: 'Room to improve Q2 time', color: theme.colors.q3 };
     }
     // Calculate which quadrant is dominating
     const q1Percent = totalMinutes > 0 ? (quadrantMinutes.q1 / totalMinutes) * 100 : 0;
@@ -51,29 +54,29 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
     const q4Percent = totalMinutes > 0 ? (quadrantMinutes.q4 / totalMinutes) * 100 : 0;
 
     if (q1Percent > 30) {
-      return { text: 'High firefighting - plan ahead', color: '#ef4444' };
+      return { text: 'High firefighting - plan ahead', color: theme.colors.q1 };
     }
     if (q3Percent > 30) {
-      return { text: 'Consider delegating more', color: '#f59e0b' };
+      return { text: 'Consider delegating more', color: theme.colors.q3 };
     }
     if (q4Percent > 20) {
-      return { text: 'Reduce time-wasters', color: '#6b7280' };
+      return { text: 'Reduce time-wasters', color: theme.colors.q4 };
     }
-    return { text: 'Focus more on Q2 priorities', color: '#F59E0B' };
+    return { text: 'Focus more on Q2 priorities', color: theme.colors.q3 };
   };
 
   const guidance = getGuidanceText();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       {/* Main Q2 Score */}
       <View style={styles.scoreContainer}>
-        <Text style={styles.scoreLabel}>Q2 Focus</Text>
+        <Text style={[styles.scoreLabel, { color: theme.colors.textSecondary }]}>Q2 Focus</Text>
         <View style={styles.scoreRow}>
-          <Text style={styles.scoreValue}>{q2Percentage}%</Text>
+          <Text style={[styles.scoreValue, { color: theme.colors.q2 }]}>{q2Percentage}%</Text>
           <Text style={styles.scoreEmoji}>{getEmoji()}</Text>
         </View>
-        <Text style={styles.scoreSubtext}>
+        <Text style={[styles.scoreSubtext, { color: theme.colors.textMuted }]}>
           {formatDuration(quadrantMinutes.q2)} of {formatDuration(totalMinutes)}
         </Text>
         <Text style={[styles.guidanceText, { color: guidance.color }]}>
@@ -84,7 +87,7 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
       {/* Quadrant Breakdown Bar */}
       {showBreakdown && (
         <View style={styles.breakdownContainer}>
-          <View style={styles.barContainer}>
+          <View style={[styles.barContainer, { backgroundColor: theme.colors.surfaceAlt }]}>
             {([1, 2, 3, 4] as const).map((q) => {
               const minutes = quadrantMinutes[`q${q}` as keyof QuadrantBreakdown];
               const percent = (minutes / totalMinutes) * 100;
@@ -113,7 +116,7 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
               return (
                 <View key={q} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: QUADRANT_INFO[q].color }]} />
-                  <Text style={styles.legendText}>
+                  <Text style={[styles.legendText, { color: theme.colors.textSecondary }]}>
                     {QUADRANT_INFO[q].label}: {formatDuration(minutes)}
                   </Text>
                 </View>
@@ -128,19 +131,15 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#12121A',
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   emptyContainer: {
-    backgroundColor: '#12121A',
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#252542',
   },
   emptyImage: {
     width: 100,
@@ -149,13 +148,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   emptyText: {
-    color: '#F1F5F9',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   emptySubtext: {
-    color: '#64748B',
     fontSize: 13,
     textAlign: 'center',
   },
@@ -164,7 +161,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   scoreLabel: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
@@ -177,7 +173,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   scoreValue: {
-    color: '#10B981',
     fontSize: 56,
     fontWeight: '800',
     letterSpacing: -2,
@@ -186,7 +181,6 @@ const styles = StyleSheet.create({
     fontSize: 36,
   },
   scoreSubtext: {
-    color: '#64748B',
     fontSize: 14,
     marginTop: 6,
   },
@@ -203,7 +197,6 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     overflow: 'hidden',
-    backgroundColor: '#1A1A2E',
   },
   barSegment: {
     height: '100%',
@@ -226,7 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   legendText: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '500',
   },

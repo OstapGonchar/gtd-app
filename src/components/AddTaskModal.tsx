@@ -14,6 +14,7 @@ import { Category, Quadrant } from '../types';
 import { QuadrantPicker } from './QuadrantPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { DurationPicker } from './DurationPicker';
+import { useTheme } from '../ThemeContext';
 
 interface AddTaskModalProps {
   visible: boolean;
@@ -30,6 +31,7 @@ export function AddTaskModal({
   onClose,
   onAdd,
 }: AddTaskModalProps) {
+  const { theme } = useTheme();
   const [title, setTitle] = useState('');
   const [quadrant, setQuadrant] = useState<Quadrant | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -65,15 +67,18 @@ export function AddTaskModal({
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>{'\u00D7'}</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>Log Activity</Text>
+          <View style={[styles.header, { borderBottomColor: theme.colors.surface }]}>
             <TouchableOpacity
-              style={[styles.addButton, !canAdd && styles.addButtonDisabled]}
+              style={[styles.closeButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.closeButtonText, { color: theme.colors.text }]}>{'\u00D7'}</Text>
+            </TouchableOpacity>
+            <Text style={[styles.title, { color: theme.colors.text }]}>Log Activity</Text>
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: theme.colors.primary }, !canAdd && styles.addButtonDisabled]}
               onPress={handleAdd}
               disabled={!canAdd}
             >
@@ -89,22 +94,22 @@ export function AddTaskModal({
             keyboardShouldPersistTaps="handled"
           >
             {/* Task Title */}
-            <Text style={styles.label}>What did you work on?</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>What did you work on?</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
               placeholder="e.g., Strategic planning session"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={theme.colors.textMuted}
               value={title}
               onChangeText={setTitle}
               autoFocus
             />
 
             {/* Quadrant Picker */}
-            <Text style={styles.label}>Which quadrant?</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Which quadrant?</Text>
             <QuadrantPicker selected={quadrant} onSelect={setQuadrant} />
 
             {/* Category */}
-            <Text style={styles.label}>Category</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Category</Text>
             <CategoryPicker
               categories={categories}
               selected={categoryId}
@@ -112,7 +117,7 @@ export function AddTaskModal({
             />
 
             {/* Duration */}
-            <Text style={styles.label}>How long?</Text>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>How long?</Text>
             <DurationPicker
               selected={duration}
               onSelect={setDuration}
@@ -134,7 +139,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0A0A0F',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '92%',
@@ -147,31 +151,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#12121A',
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#12121A',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   closeButtonText: {
-    color: '#F1F5F9',
     fontSize: 24,
     lineHeight: 24,
   },
   title: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   addButton: {
-    backgroundColor: '#A78BFA',
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 22,
@@ -182,7 +180,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addButtonDisabled: {
-    backgroundColor: '#4C1D95',
     opacity: 0.5,
     shadowOpacity: 0,
   },
@@ -198,7 +195,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   label: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 22,
@@ -206,14 +202,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   input: {
-    backgroundColor: '#12121A',
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    color: '#F1F5F9',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   spacer: {
     height: 44,

@@ -12,6 +12,9 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import Constants from 'expo-constants';
+import { ThemeProvider, useTheme, ThemeMode } from './src/ThemeContext';
+import { Theme } from './src/theme';
 
 // Import illustrations
 const emptyTodayImage = require('./assets/empty-today.png');
@@ -26,6 +29,7 @@ import {
   deleteCategory,
   addTask,
   deleteTask,
+  toggleTaskCompletion,
   getDaySummary,
   getMonthSummaries,
   calculateStreak,
@@ -34,7 +38,7 @@ import {
   getAllTimeStats,
   AllTimeStats,
 } from './src/database';
-import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './src/types';
+import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode as ThemeModeType } from './src/types';
 import { Q2Progress } from './src/components/Q2Progress';
 import { DevTools } from './src/components/DevTools';
 import { CalendarView } from './src/components/CalendarView';
@@ -46,9 +50,15 @@ import { DurationPicker } from './src/components/DurationPicker';
 import { StatsModal } from './src/components/StatsModal';
 import { AboutModal } from './src/components/AboutModal';
 
-type TabType = 'today' | 'history' | 'categories' | 'settings';
+type TabType = 'today' | 'calendar' | 'categories' | 'settings';
 
-export default function App() {
+// Get status bar height for proper padding
+const STATUS_BAR_HEIGHT = Platform.OS === 'ios'
+  ? Constants.statusBarHeight
+  : StatusBar.currentHeight || 24;
+
+function AppContent() {
+  const { theme, themeMode, setThemeMode, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('today');
 
@@ -56,7 +66,7 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [todaySummary, setTodaySummary] = useState<DaySummary | null>(null);
   const [streak, setStreak] = useState<StreakInfo>({ currentStreak: 0, longestStreak: 0, lastActiveDate: null });
-  const [settings, setSettings] = useState<AppSettings>({ durationPresets: DEFAULT_DURATION_PRESETS });
+  const [settings, setSettings] = useState<AppSettings>({ durationPresets: DEFAULT_DURATION_PRESETS, themeMode: 'auto' });
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats>({
     totalDays: 0, totalMinutes: 0, totalTasks: 0,
     quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 },
@@ -95,7 +105,12 @@ export default function App() {
     setStreak(streakInfo);
     setSettings(appSettings);
     setAllTimeStats(stats);
-  }, []);
+
+    // Apply saved theme mode
+    if (appSettings.themeMode && appSettings.themeMode !== themeMode) {
+      setThemeMode(appSettings.themeMode);
+    }
+  }, [themeMode, setThemeMode]);
 
   const loadMonthData = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -123,6 +138,13 @@ export default function App() {
     }
   }, [isLoading, loadMonthData]);
 
+  // Refresh calendar data when switching to calendar tab
+  useEffect(() => {
+    if (!isLoading && activeTab === 'calendar') {
+      loadMonthData();
+    }
+  }, [activeTab, isLoading, loadMonthData]);
+
   const handleAddTask = async (title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
     await addTask(title, quadrant, categoryId, duration);
     loadData();
@@ -136,6 +158,11 @@ export default function App() {
       await deleteTask(taskId);
       loadData();
     }
+  };
+
+  const handleToggleTaskCompletion = async (taskId: string) => {
+    await toggleTaskCompletion(taskId);
+    loadData();
   };
 
   const handleAddCategory = async () => {
@@ -191,6 +218,12 @@ export default function App() {
     setSettings({ ...settings, durationPresets: newPresets });
   };
 
+  const handleThemeModeChange = async (mode: ThemeModeType) => {
+    setThemeMode(mode);
+    await updateSettings({ themeMode: mode });
+    setSettings({ ...settings, themeMode: mode });
+  };
+
   const handleDeleteCategory = async (categoryId: string) => {
     const confirmed = Platform.OS === 'web'
       ? window.confirm('Delete this category?')
@@ -205,38 +238,51 @@ export default function App() {
     return categories.find(c => c.id === id);
   };
 
+  // Dynamic styles based on theme
+  const dynamicStyles = createDynamicStyles(theme);
+
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.loadingText, { color: theme.colors.primary }]}>Loading...</Text>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Safe area padding for status bar */}
+      <View style={{ height: STATUS_BAR_HEIGHT, backgroundColor: theme.colors.background }} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity style={styles.headerLeft} onPress={() => setIsAboutModalVisible(true)}>
-          <Text style={styles.title}>Q2 Focus</Text>
-          <Text style={styles.subtitle}>Track what matters</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Q2 Focus</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Track what matters</Text>
         </TouchableOpacity>
         <StreakBadge streak={streak} onPress={() => setIsStatsModalVisible(true)} />
       </View>
 
       {/* Tab Bar */}
-      <View style={styles.tabBar}>
-        {(['today', 'history', 'categories', 'settings'] as TabType[]).map((tab) => (
+      <View style={[styles.tabBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {(['today', 'calendar', 'categories', 'settings'] as TabType[]).map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            style={[
+              styles.tab,
+              activeTab === tab && [styles.tabActive, { backgroundColor: theme.colors.primary }]
+            ]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'today' ? 'Today' : tab === 'history' ? 'History' : tab === 'categories' ? 'Categories' : 'Settings'}
+            <Text style={[
+              styles.tabText,
+              { color: theme.colors.textMuted },
+              activeTab === tab && styles.tabTextActive
+            ]}>
+              {tab === 'today' ? 'Today' : tab === 'calendar' ? 'Calendar' : tab === 'categories' ? 'Categories' : 'Settings'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -248,7 +294,7 @@ export default function App() {
           <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
             {/* Today's Progress */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{formatDate(getTodayDate())}</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{formatDate(getTodayDate())}</Text>
               {todaySummary && (
                 <Q2Progress
                   quadrantMinutes={todaySummary.quadrantMinutes}
@@ -260,7 +306,7 @@ export default function App() {
 
             {/* Today's Tasks */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 {todaySummary && todaySummary.tasks.length > 0
                   ? `Today's Log (${todaySummary.tasks.length})`
                   : "Today's Log"}
@@ -269,7 +315,18 @@ export default function App() {
                 todaySummary.tasks.map((task) => {
                   const category = getCategoryById(task.categoryId);
                   return (
-                    <View key={task.id} style={styles.taskItem}>
+                    <View key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      {/* Checkbox */}
+                      <TouchableOpacity
+                        style={[
+                          styles.checkbox,
+                          { borderColor: task.completed ? theme.colors.q2 : theme.colors.textMuted },
+                          task.completed && { backgroundColor: theme.colors.q2 }
+                        ]}
+                        onPress={() => handleToggleTaskCompletion(task.id)}
+                      >
+                        {task.completed && <Text style={styles.checkmark}>✓</Text>}
+                      </TouchableOpacity>
                       <View
                         style={[
                           styles.taskQuadrant,
@@ -279,34 +336,40 @@ export default function App() {
                         <Text style={styles.taskQuadrantText}>{QUADRANT_INFO[task.quadrant].label}</Text>
                       </View>
                       <View style={styles.taskContent}>
-                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={[
+                          styles.taskTitle,
+                          { color: theme.colors.text },
+                          task.completed && styles.taskTitleCompleted
+                        ]}>
+                          {task.title}
+                        </Text>
                         <View style={styles.taskMeta}>
                           {category && (
                             <Text style={[styles.taskCategory, { color: category.color }]}>
                               {category.icon} {category.name}
                             </Text>
                           )}
-                          <Text style={styles.taskDuration}>{formatDuration(task.duration)}</Text>
+                          <Text style={[styles.taskDuration, { color: theme.colors.textMuted }]}>{formatDuration(task.duration)}</Text>
                         </View>
                       </View>
                       <TouchableOpacity
                         style={styles.deleteButton}
                         onPress={() => handleDeleteTask(task.id)}
                       >
-                        <Text style={styles.deleteButtonText}>{'\u00D7'}</Text>
+                        <Text style={[styles.deleteButtonText, { color: theme.colors.textMuted }]}>{'\u00D7'}</Text>
                       </TouchableOpacity>
                     </View>
                   );
                 })
               ) : (
-                <View style={styles.emptyTodayState}>
+                <View style={[styles.emptyTodayState, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Image
                     source={emptyTodayImage}
                     style={styles.emptyTodayImage}
                     resizeMode="contain"
                   />
-                  <Text style={styles.emptyTodayText}>Start your focus journey</Text>
-                  <Text style={styles.emptyTodaySubtext}>Tap + to log your first activity</Text>
+                  <Text style={[styles.emptyTodayText, { color: theme.colors.text }]}>Start your focus journey</Text>
+                  <Text style={[styles.emptyTodaySubtext, { color: theme.colors.textMuted }]}>Tap + to log your first activity</Text>
                 </View>
               )}
             </View>
@@ -314,7 +377,7 @@ export default function App() {
 
           {/* Floating Add Button */}
           <TouchableOpacity
-            style={styles.fab}
+            style={[styles.fab, { backgroundColor: theme.colors.primary }]}
             onPress={() => setIsAddTaskModalVisible(true)}
           >
             <Text style={styles.fabText}>+</Text>
@@ -331,8 +394,8 @@ export default function App() {
         onAdd={handleAddTask}
       />
 
-      {/* History Tab */}
-      {activeTab === 'history' && (
+      {/* Calendar Tab (renamed from History) */}
+      {activeTab === 'calendar' && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           <CalendarView
             monthSummaries={monthSummaries}
@@ -371,34 +434,34 @@ export default function App() {
       {activeTab === 'categories' && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Categories</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Categories</Text>
 
             {categories.map((category) => (
-              <View key={category.id} style={styles.categoryItem}>
+              <View key={category.id} style={[styles.categoryItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <View style={[styles.categoryColor, { backgroundColor: category.color }]} />
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={[styles.categoryName, { color: theme.colors.text }]}>{category.name}</Text>
                 <TouchableOpacity
                   style={styles.categoryDelete}
                   onPress={() => handleDeleteCategory(category.id)}
                 >
-                  <Text style={styles.categoryDeleteText}>{'\u00D7'}</Text>
+                  <Text style={[styles.categoryDeleteText, { color: theme.colors.textMuted }]}>{'\u00D7'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
 
-            <View style={styles.addCategoryForm}>
+            <View style={[styles.addCategoryForm, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <TextInput
-                style={styles.addCategoryInput}
+                style={[styles.addCategoryInput, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border, color: theme.colors.text }]}
                 placeholder="New category name..."
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.colors.textMuted}
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
               />
-              <Text style={styles.fieldLabelSmall}>Choose Icon</Text>
+              <Text style={[styles.fieldLabelSmall, { color: theme.colors.textSecondary }]}>Choose Icon</Text>
               <IconPicker selected={newCategoryIcon} onSelect={setNewCategoryIcon} />
               <TouchableOpacity
-                style={[styles.addCategoryButton, !newCategoryName.trim() && styles.addButtonDisabled]}
+                style={[styles.addCategoryButton, { backgroundColor: theme.colors.primary }, !newCategoryName.trim() && styles.addButtonDisabled]}
                 onPress={handleAddCategory}
                 disabled={!newCategoryName.trim()}
               >
@@ -412,18 +475,52 @@ export default function App() {
       {/* Settings Tab */}
       {activeTab === 'settings' && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Theme Settings */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Duration Presets</Text>
-            <Text style={styles.settingsDescription}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
+            <Text style={[styles.settingsDescription, { color: theme.colors.textMuted }]}>
+              Choose your preferred theme. Auto mode switches based on time of day (6am-6pm light, 6pm-6am dark).
+            </Text>
+
+            <View style={styles.themeOptions}>
+              {(['auto', 'light', 'dark'] as ThemeModeType[]).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.themeOption,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    settings.themeMode === mode && { borderColor: theme.colors.primary, borderWidth: 2 }
+                  ]}
+                  onPress={() => handleThemeModeChange(mode)}
+                >
+                  <Text style={styles.themeIcon}>
+                    {mode === 'auto' ? '🌗' : mode === 'light' ? '☀️' : '🌙'}
+                  </Text>
+                  <Text style={[
+                    styles.themeLabel,
+                    { color: theme.colors.text },
+                    settings.themeMode === mode && { color: theme.colors.primary, fontWeight: '700' }
+                  ]}>
+                    {mode === 'auto' ? 'Auto' : mode === 'light' ? 'Light' : 'Dark'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Duration Presets */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Duration Presets</Text>
+            <Text style={[styles.settingsDescription, { color: theme.colors.textMuted }]}>
               Customize the duration options shown when logging activities.
             </Text>
 
             <View style={styles.presetsContainer}>
               {settings.durationPresets.map((duration) => (
-                <View key={duration} style={styles.presetItem}>
-                  <Text style={styles.presetText}>{formatDuration(duration)}</Text>
+                <View key={duration} style={[styles.presetItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.presetText, { color: theme.colors.text }]}>{formatDuration(duration)}</Text>
                   <TouchableOpacity
-                    style={styles.presetDelete}
+                    style={[styles.presetDelete, { backgroundColor: theme.colors.surfaceAlt }]}
                     onPress={() => handleRemoveDurationPreset(duration)}
                     disabled={settings.durationPresets.length <= 1}
                   >
@@ -437,15 +534,15 @@ export default function App() {
 
             <View style={styles.addPresetRow}>
               <TextInput
-                style={styles.addPresetInput}
+                style={[styles.addPresetInput, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, color: theme.colors.text }]}
                 placeholder="e.g. 45, 1.5h, 2h"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.colors.textMuted}
                 value={newDurationValue}
                 onChangeText={setNewDurationValue}
                 keyboardType="numeric"
               />
               <TouchableOpacity
-                style={[styles.addPresetButton, !newDurationValue.trim() && styles.addButtonDisabled]}
+                style={[styles.addPresetButton, { backgroundColor: theme.colors.primary }, !newDurationValue.trim() && styles.addButtonDisabled]}
                 onPress={handleAddDurationPreset}
                 disabled={!newDurationValue.trim()}
               >
@@ -459,14 +556,53 @@ export default function App() {
 
       {/* Dev Tools */}
       <DevTools onDataReset={() => { loadData(); loadMonthData(); }} />
-    </SafeAreaView>
+    </View>
   );
+}
+
+// Wrap the app with ThemeProvider
+export default function App() {
+  const [initialThemeMode, setInitialThemeMode] = useState<ThemeMode>('auto');
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Load saved theme mode before rendering
+    (async () => {
+      try {
+        const settings = await getSettings();
+        setInitialThemeMode(settings.themeMode || 'auto');
+      } catch (e) {
+        // Use default
+      }
+      setIsReady(true);
+    })();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#A78BFA" />
+      </View>
+    );
+  }
+
+  return (
+    <ThemeProvider initialMode={initialThemeMode}>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+// Helper function to create dynamic styles (can be expanded)
+function createDynamicStyles(theme: Theme) {
+  return StyleSheet.create({
+    // Add any dynamic styles here if needed
+  });
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0F',
   },
   loadingContainer: {
     flex: 1,
@@ -476,7 +612,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    color: '#A78BFA',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -485,7 +620,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   headerLeft: {
@@ -494,23 +629,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '800',
-    color: '#F1F5F9',
     letterSpacing: -1.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748B',
     marginTop: 4,
     fontWeight: '500',
   },
   tabBar: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    backgroundColor: '#12121A',
     borderRadius: 14,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   tab: {
     flex: 1,
@@ -519,7 +650,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabActive: {
-    backgroundColor: '#A78BFA',
     shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
@@ -527,7 +657,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   tabText: {
-    color: '#64748B',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -551,7 +680,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#A78BFA',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#A78BFA',
@@ -567,12 +695,10 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   emptyTodayState: {
-    backgroundColor: '#12121A',
     borderRadius: 20,
     padding: 40,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#252542',
   },
   emptyTodayImage: {
     width: 120,
@@ -581,27 +707,23 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   emptyTodayText: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
   },
   emptyTodaySubtext: {
-    color: '#64748B',
     fontSize: 14,
   },
   section: {
     marginBottom: 28,
   },
   sectionTitle: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 14,
     letterSpacing: -0.3,
   },
   fieldLabel: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 16,
@@ -609,29 +731,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   input: {
-    backgroundColor: '#12121A',
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    color: '#F1F5F9',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   addButton: {
-    backgroundColor: '#A78BFA',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   addButtonDisabled: {
-    backgroundColor: '#4C1D95',
     opacity: 0.5,
     shadowOpacity: 0,
   },
@@ -643,12 +759,24 @@ const styles = StyleSheet.create({
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12121A',
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmark: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   taskQuadrant: {
     paddingHorizontal: 10,
@@ -666,9 +794,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   taskTitle: {
-    color: '#F1F5F9',
     fontSize: 15,
     fontWeight: '600',
+  },
+  taskTitleCompleted: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
   taskMeta: {
     flexDirection: 'row',
@@ -681,7 +812,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   taskDuration: {
-    color: '#64748B',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -693,7 +823,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   deleteButtonText: {
-    color: '#64748B',
     fontSize: 24,
   },
   emptyState: {
@@ -707,23 +836,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateText: {
-    color: '#64748B',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
   },
   dayCard: {
-    backgroundColor: '#12121A',
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   dayCardToday: {
     borderWidth: 1,
-    borderColor: '#A78BFA',
-    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -735,7 +859,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayDate: {
-    color: '#F1F5F9',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -745,7 +868,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dayQ2: {
-    color: '#94A3B8',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -753,7 +875,6 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   dayTotal: {
-    color: '#64748B',
     fontSize: 13,
   },
   miniBar: {
@@ -761,26 +882,22 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     overflow: 'hidden',
-    backgroundColor: '#1A1A2E',
     marginTop: 12,
   },
   miniBarSegment: {
     height: '100%',
   },
   dayTaskCount: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 10,
   },
   categoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12121A',
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   categoryColor: {
     width: 18,
@@ -794,7 +911,6 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     flex: 1,
-    color: '#F1F5F9',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -806,29 +922,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   categoryDeleteText: {
-    color: '#64748B',
     fontSize: 24,
   },
   addCategoryForm: {
     marginTop: 20,
-    backgroundColor: '#12121A',
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   addCategoryInput: {
-    backgroundColor: '#1A1A2E',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#F1F5F9',
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   fieldLabelSmall: {
-    color: '#94A3B8',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 14,
@@ -836,12 +945,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   addCategoryButton: {
-    backgroundColor: '#A78BFA',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 14,
-    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -853,10 +960,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   settingsDescription: {
-    color: '#64748B',
     fontSize: 14,
     marginBottom: 18,
     lineHeight: 21,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  themeIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  themeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   presetsContainer: {
     flexDirection: 'row',
@@ -867,17 +994,14 @@ const styles = StyleSheet.create({
   presetItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12121A',
     borderRadius: 12,
     paddingLeft: 16,
     paddingRight: 8,
     paddingVertical: 10,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   presetText: {
-    color: '#F1F5F9',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -887,7 +1011,6 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1A1A2E',
   },
   presetDeleteText: {
     color: '#F43F5E',
@@ -902,21 +1025,16 @@ const styles = StyleSheet.create({
   },
   addPresetInput: {
     flex: 1,
-    backgroundColor: '#12121A',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#F1F5F9',
     fontSize: 15,
     borderWidth: 1,
-    borderColor: '#252542',
   },
   addPresetButton: {
-    backgroundColor: '#A78BFA',
     borderRadius: 12,
     paddingHorizontal: 24,
     justifyContent: 'center',
-    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

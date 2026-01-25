@@ -10,6 +10,7 @@ import {
 import { DaySummary, Category, QUADRANT_INFO } from '../types';
 import { formatDate, formatDuration } from '../database';
 import { Q2Progress } from './Q2Progress';
+import { useTheme } from '../ThemeContext';
 
 interface DayDetailModalProps {
   visible: boolean;
@@ -24,6 +25,8 @@ export function DayDetailModal({
   categories,
   onClose,
 }: DayDetailModalProps) {
+  const { theme } = useTheme();
+
   if (!daySummary) return null;
 
   const getCategoryById = (id: string): Category | undefined => {
@@ -38,13 +41,16 @@ export function DayDetailModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>{'\u00D7'}</Text>
+          <View style={[styles.header, { borderBottomColor: theme.colors.surface }]}>
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.closeButtonText, { color: theme.colors.text }]}>{'\u00D7'}</Text>
             </TouchableOpacity>
-            <Text style={styles.dateTitle}>{formatDate(daySummary.date)}</Text>
+            <Text style={[styles.dateTitle, { color: theme.colors.text }]}>{formatDate(daySummary.date)}</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -59,35 +65,35 @@ export function DayDetailModal({
             </View>
 
             {/* Summary Stats */}
-            <View style={styles.summaryRow}>
+            <View style={[styles.summaryRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
                   {formatDuration(daySummary.totalMinutes)}
                 </Text>
-                <Text style={styles.summaryLabel}>Total</Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Total</Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, styles.q2Value]}>
+                <Text style={[styles.summaryValue, { color: theme.colors.q2 }]}>
                   {daySummary.q2Percentage}%
                 </Text>
-                <Text style={styles.summaryLabel}>Q2 Time</Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Q2 Time</Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{daySummary.tasks.length}</Text>
-                <Text style={styles.summaryLabel}>Activities</Text>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{daySummary.tasks.length}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Activities</Text>
               </View>
             </View>
 
             {/* Tasks List */}
             {daySummary.tasks.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Activities</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Activities</Text>
                 {daySummary.tasks.map((task) => {
                   const category = getCategoryById(task.categoryId);
                   const quadrant = QUADRANT_INFO[task.quadrant];
 
                   return (
-                    <View key={task.id} style={styles.taskItem}>
+                    <View key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                       <View style={styles.taskHeader}>
                         <View
                           style={[
@@ -97,10 +103,10 @@ export function DayDetailModal({
                         >
                           <Text style={styles.quadrantText}>{quadrant.label}</Text>
                         </View>
-                        <Text style={styles.taskTitle} numberOfLines={1}>
+                        <Text style={[styles.taskTitle, { color: theme.colors.text }]} numberOfLines={1}>
                           {task.title}
                         </Text>
-                        <Text style={styles.taskDuration}>
+                        <Text style={[styles.taskDuration, { color: theme.colors.textSecondary }]}>
                           {formatDuration(task.duration)}
                         </Text>
                       </View>
@@ -130,7 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#0A0A0F',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '88%',
@@ -143,25 +148,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#12121A',
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#12121A',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   closeButtonText: {
-    color: '#F1F5F9',
     fontSize: 24,
     lineHeight: 24,
   },
   dateTitle: {
-    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
@@ -178,44 +178,34 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#12121A',
     borderRadius: 16,
     paddingVertical: 18,
     marginTop: 18,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   summaryItem: {
     alignItems: 'center',
   },
   summaryValue: {
-    color: '#F1F5F9',
     fontSize: 22,
     fontWeight: '700',
   },
-  q2Value: {
-    color: '#10B981',
-  },
   summaryLabel: {
-    color: '#64748B',
     fontSize: 12,
     marginTop: 6,
     fontWeight: '500',
   },
   sectionTitle: {
-    color: '#F1F5F9',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 14,
     letterSpacing: -0.2,
   },
   taskItem: {
-    backgroundColor: '#12121A',
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1A1A2E',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -235,12 +225,10 @@ const styles = StyleSheet.create({
   },
   taskTitle: {
     flex: 1,
-    color: '#F1F5F9',
     fontSize: 15,
     fontWeight: '600',
   },
   taskDuration: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '600',
     marginLeft: 10,

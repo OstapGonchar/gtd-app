@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Category, TaskEntry, DaySummary, QuadrantBreakdown, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './types';
+import { Category, TaskEntry, DaySummary, QuadrantBreakdown, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode } from './types';
 
 const TASKS_KEY = 'q2_tasks';
 const CATEGORIES_KEY = 'q2_categories';
@@ -129,6 +129,18 @@ export async function deleteTask(id: string): Promise<void> {
   const tasks = await getAllTasks();
   const filtered = tasks.filter(t => t.id !== id);
   await saveTasks(filtered);
+}
+
+export async function toggleTaskCompletion(id: string): Promise<boolean | undefined> {
+  const tasks = await getAllTasks();
+  const index = tasks.findIndex(t => t.id === id);
+  if (index !== -1) {
+    const newCompleted = !tasks[index].completed;
+    tasks[index] = { ...tasks[index], completed: newCompleted };
+    await saveTasks(tasks);
+    return newCompleted;
+  }
+  return undefined;
 }
 
 export async function getTasksForDate(date: string): Promise<TaskEntry[]> {
@@ -337,9 +349,14 @@ export async function getAllTimeStats(): Promise<AllTimeStats> {
 export async function getSettings(): Promise<AppSettings> {
   const data = await AsyncStorage.getItem(SETTINGS_KEY);
   if (data) {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    // Ensure themeMode has a default value for existing data
+    return {
+      durationPresets: parsed.durationPresets || [...DEFAULT_DURATION_PRESETS],
+      themeMode: parsed.themeMode || 'auto',
+    };
   }
-  return { durationPresets: [...DEFAULT_DURATION_PRESETS] };
+  return { durationPresets: [...DEFAULT_DURATION_PRESETS], themeMode: 'auto' };
 }
 
 export async function updateSettings(settings: Partial<AppSettings>): Promise<void> {

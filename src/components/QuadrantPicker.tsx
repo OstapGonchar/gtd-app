@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Quadrant, QUADRANT_INFO } from '../types';
+import { useTheme } from '../ThemeContext';
 
 // Import quadrant illustrations
 const quadrantImages: Record<Quadrant, any> = {
@@ -16,23 +17,25 @@ interface QuadrantPickerProps {
 }
 
 export function QuadrantPicker({ selected, onSelect }: QuadrantPickerProps) {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       {/* Column Headers */}
       <View style={styles.headerRow}>
         <View style={styles.cornerCell} />
         <View style={styles.headerCell}>
-          <Text style={styles.headerText}>URGENT</Text>
+          <Text style={[styles.headerText, { color: theme.colors.textMuted }]}>URGENT</Text>
         </View>
         <View style={styles.headerCell}>
-          <Text style={styles.headerText}>NOT URGENT</Text>
+          <Text style={[styles.headerText, { color: theme.colors.textMuted }]}>NOT URGENT</Text>
         </View>
       </View>
 
       {/* Important Row - Q1 & Q2 */}
       <View style={styles.matrixRow}>
         <View style={styles.sideHeader}>
-          <Text style={styles.sideHeaderText}>IMPORTANT</Text>
+          <Text style={[styles.sideHeaderText, { color: theme.colors.textMuted }]}>IMPORTANT</Text>
         </View>
         <QuadrantCell
           quadrant={1}
@@ -50,7 +53,7 @@ export function QuadrantPicker({ selected, onSelect }: QuadrantPickerProps) {
       {/* Not Important Row - Q3 & Q4 */}
       <View style={styles.matrixRow}>
         <View style={styles.sideHeader}>
-          <Text style={styles.sideHeaderText}>NOT{'\n'}IMPORTANT</Text>
+          <Text style={[styles.sideHeaderText, { color: theme.colors.textMuted }]}>NOT{'\n'}IMPORTANT</Text>
         </View>
         <QuadrantCell
           quadrant={3}
@@ -75,6 +78,7 @@ interface QuadrantCellProps {
 }
 
 function QuadrantCell({ quadrant, isSelected, onSelect, isGoal }: QuadrantCellProps) {
+  const { theme } = useTheme();
   const info = QUADRANT_INFO[quadrant];
 
   return (
@@ -105,7 +109,7 @@ function QuadrantCell({ quadrant, isSelected, onSelect, isGoal }: QuadrantCellPr
         ]}
         resizeMode="contain"
       />
-      <Text style={[styles.cellLabel, isSelected && styles.cellLabelSelected]}>
+      <Text style={[styles.cellLabel, { color: theme.colors.textSecondary }, isSelected && styles.cellLabelSelected]}>
         {info.label}
       </Text>
       <Text style={[styles.cellName, isSelected && styles.cellNameSelected, { color: isSelected ? '#fff' : info.color }]}>
@@ -131,7 +135,6 @@ function getCellAction(quadrant: Quadrant): string {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#12121A',
     borderRadius: 16,
     padding: 12,
   },
@@ -148,7 +151,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   headerText: {
-    color: '#64748B',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -163,7 +165,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sideHeaderText: {
-    color: '#64748B',
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -197,7 +198,6 @@ const styles = StyleSheet.create({
     tintColor: '#ffffff',
   },
   cellLabel: {
-    color: '#94A3B8',
     fontSize: 10,
     fontWeight: '800',
     marginBottom: 2,
@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   cellDesc: {
-    color: '#64748B',
     fontSize: 10,
     textAlign: 'center',
   },

@@ -16,6 +16,7 @@ export interface TaskEntry {
   duration: number; // minutes
   date: string; // "2026-01-23"
   createdAt: string;
+  completed?: boolean; // Task completion status for to-do functionality
 }
 
 // Calculated summaries
@@ -63,6 +64,9 @@ export interface StreakInfo {
   lastActiveDate: string | null;
 }
 
+export type ThemeMode = 'light' | 'dark' | 'auto';
+
 export interface AppSettings {
   durationPresets: number[];
+  themeMode: ThemeMode;
 }
