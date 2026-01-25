@@ -268,6 +268,70 @@ function getPreviousDay(dateStr: string): string {
   return date.toISOString().split('T')[0];
 }
 
+// ============ All-Time Stats ============
+
+export interface AllTimeStats {
+  totalDays: number;
+  totalMinutes: number;
+  totalTasks: number;
+  quadrantMinutes: QuadrantBreakdown;
+  q2Percentage: number;
+  avgDailyMinutes: number;
+  avgDailyQ2Percentage: number;
+  firstActiveDate: string | null;
+}
+
+export async function getAllTimeStats(): Promise<AllTimeStats> {
+  const tasks = await getAllTasks();
+
+  if (tasks.length === 0) {
+    return {
+      totalDays: 0,
+      totalMinutes: 0,
+      totalTasks: 0,
+      quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 },
+      q2Percentage: 0,
+      avgDailyMinutes: 0,
+      avgDailyQ2Percentage: 0,
+      firstActiveDate: null,
+    };
+  }
+
+  const dates = [...new Set(tasks.map(t => t.date))].sort();
+  const quadrantMinutes = calculateQuadrantBreakdown(tasks);
+  const totalMinutes = tasks.reduce((sum, t) => sum + t.duration, 0);
+
+  // Calculate average Q2 percentage per day
+  const dailyQ2Percentages: number[] = [];
+  const tasksByDate = new Map<string, TaskEntry[]>();
+  for (const task of tasks) {
+    const existing = tasksByDate.get(task.date) || [];
+    existing.push(task);
+    tasksByDate.set(task.date, existing);
+  }
+
+  for (const [, dateTasks] of tasksByDate) {
+    const dayTotal = dateTasks.reduce((sum, t) => sum + t.duration, 0);
+    const dayQ2 = dateTasks.filter(t => t.quadrant === 2).reduce((sum, t) => sum + t.duration, 0);
+    if (dayTotal > 0) {
+      dailyQ2Percentages.push(Math.round((dayQ2 / dayTotal) * 100));
+    }
+  }
+
+  return {
+    totalDays: dates.length,
+    totalMinutes,
+    totalTasks: tasks.length,
+    quadrantMinutes,
+    q2Percentage: totalMinutes > 0 ? Math.round((quadrantMinutes.q2 / totalMinutes) * 100) : 0,
+    avgDailyMinutes: Math.round(totalMinutes / dates.length),
+    avgDailyQ2Percentage: dailyQ2Percentages.length > 0
+      ? Math.round(dailyQ2Percentages.reduce((a, b) => a + b, 0) / dailyQ2Percentages.length)
+      : 0,
+    firstActiveDate: dates[0] || null,
+  };
+}
+
 // ============ Settings ============
 
 export async function getSettings(): Promise<AppSettings> {

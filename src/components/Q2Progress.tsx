@@ -35,6 +35,35 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
     return '\u{1F914}'; // Thinking
   };
 
+  const getGuidanceText = () => {
+    if (q2Percentage >= 40) {
+      return { text: 'Excellent focus!', color: '#10B981' };
+    }
+    if (q2Percentage >= 30) {
+      return { text: 'Good progress, keep it up!', color: '#10B981' };
+    }
+    if (q2Percentage >= 20) {
+      return { text: 'Room to improve Q2 time', color: '#F59E0B' };
+    }
+    // Calculate which quadrant is dominating
+    const q1Percent = totalMinutes > 0 ? (quadrantMinutes.q1 / totalMinutes) * 100 : 0;
+    const q3Percent = totalMinutes > 0 ? (quadrantMinutes.q3 / totalMinutes) * 100 : 0;
+    const q4Percent = totalMinutes > 0 ? (quadrantMinutes.q4 / totalMinutes) * 100 : 0;
+
+    if (q1Percent > 30) {
+      return { text: 'High firefighting - plan ahead', color: '#ef4444' };
+    }
+    if (q3Percent > 30) {
+      return { text: 'Consider delegating more', color: '#f59e0b' };
+    }
+    if (q4Percent > 20) {
+      return { text: 'Reduce time-wasters', color: '#6b7280' };
+    }
+    return { text: 'Focus more on Q2 priorities', color: '#F59E0B' };
+  };
+
+  const guidance = getGuidanceText();
+
   return (
     <View style={styles.container}>
       {/* Main Q2 Score */}
@@ -46,6 +75,9 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
         </View>
         <Text style={styles.scoreSubtext}>
           {formatDuration(quadrantMinutes.q2)} of {formatDuration(totalMinutes)}
+        </Text>
+        <Text style={[styles.guidanceText, { color: guidance.color }]}>
+          {guidance.text}
         </Text>
       </View>
 
@@ -157,6 +189,11 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 14,
     marginTop: 6,
+  },
+  guidanceText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 10,
   },
   breakdownContainer: {
     marginTop: 12,

@@ -31,6 +31,8 @@ import {
   calculateStreak,
   getSettings,
   updateSettings,
+  getAllTimeStats,
+  AllTimeStats,
 } from './src/database';
 import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS } from './src/types';
 import { Q2Progress } from './src/components/Q2Progress';
@@ -41,6 +43,8 @@ import { StreakBadge } from './src/components/StreakBadge';
 import { IconPicker } from './src/components/IconPicker';
 import { AddTaskModal } from './src/components/AddTaskModal';
 import { DurationPicker } from './src/components/DurationPicker';
+import { StatsModal } from './src/components/StatsModal';
+import { AboutModal } from './src/components/AboutModal';
 
 type TabType = 'today' | 'history' | 'categories' | 'settings';
 
@@ -53,6 +57,13 @@ export default function App() {
   const [todaySummary, setTodaySummary] = useState<DaySummary | null>(null);
   const [streak, setStreak] = useState<StreakInfo>({ currentStreak: 0, longestStreak: 0, lastActiveDate: null });
   const [settings, setSettings] = useState<AppSettings>({ durationPresets: DEFAULT_DURATION_PRESETS });
+  const [allTimeStats, setAllTimeStats] = useState<AllTimeStats>({
+    totalDays: 0, totalMinutes: 0, totalTasks: 0,
+    quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 },
+    q2Percentage: 0, avgDailyMinutes: 0, avgDailyQ2Percentage: 0, firstActiveDate: null,
+  });
+  const [isStatsModalVisible, setIsStatsModalVisible] = useState(false);
+  const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
 
   // Calendar/History
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -72,16 +83,18 @@ export default function App() {
   const [newDurationValue, setNewDurationValue] = useState('');
 
   const loadData = useCallback(async () => {
-    const [cats, today, streakInfo, appSettings] = await Promise.all([
+    const [cats, today, streakInfo, appSettings, stats] = await Promise.all([
       getCategories(),
       getDaySummary(getTodayDate()),
       calculateStreak(),
       getSettings(),
+      getAllTimeStats(),
     ]);
     setCategories(cats);
     setTodaySummary(today);
     setStreak(streakInfo);
     setSettings(appSettings);
+    setAllTimeStats(stats);
   }, []);
 
   const loadMonthData = useCallback(async () => {
@@ -207,11 +220,11 @@ export default function App() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <TouchableOpacity style={styles.headerLeft} onPress={() => setIsAboutModalVisible(true)}>
           <Text style={styles.title}>Q2 Focus</Text>
           <Text style={styles.subtitle}>Track what matters</Text>
-        </View>
-        <StreakBadge streak={streak} />
+        </TouchableOpacity>
+        <StreakBadge streak={streak} onPress={() => setIsStatsModalVisible(true)} />
       </View>
 
       {/* Tab Bar */}
@@ -340,6 +353,20 @@ export default function App() {
         onClose={() => setIsDayModalVisible(false)}
       />
 
+      {/* Stats Modal */}
+      <StatsModal
+        visible={isStatsModalVisible}
+        streak={streak}
+        allTimeStats={allTimeStats}
+        onClose={() => setIsStatsModalVisible(false)}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        visible={isAboutModalVisible}
+        onClose={() => setIsAboutModalVisible(false)}
+      />
+
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
@@ -424,26 +451,6 @@ export default function App() {
               >
                 <Text style={styles.addPresetButtonText}>Add</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Streak Info</Text>
-            <View style={styles.streakInfoCard}>
-              <View style={styles.streakInfoRow}>
-                <Text style={styles.streakInfoLabel}>Current Streak</Text>
-                <Text style={styles.streakInfoValue}>{streak.currentStreak} days</Text>
-              </View>
-              <View style={styles.streakInfoRow}>
-                <Text style={styles.streakInfoLabel}>Longest Streak</Text>
-                <Text style={styles.streakInfoValue}>{streak.longestStreak} days</Text>
-              </View>
-              {streak.lastActiveDate && (
-                <View style={styles.streakInfoRow}>
-                  <Text style={styles.streakInfoLabel}>Last Active</Text>
-                  <Text style={styles.streakInfoValue}>{formatDate(streak.lastActiveDate)}</Text>
-                </View>
-              )}
             </View>
           </View>
 
@@ -918,31 +925,6 @@ const styles = StyleSheet.create({
   addPresetButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '700',
-  },
-  streakInfoCard: {
-    backgroundColor: '#12121A',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1A1A2E',
-  },
-  streakInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A1A2E',
-  },
-  streakInfoLabel: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  streakInfoValue: {
-    color: '#F1F5F9',
-    fontSize: 15,
     fontWeight: '700',
   },
 });

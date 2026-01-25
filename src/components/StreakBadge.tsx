@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { StreakInfo } from '../types';
 
 // Import streak images
@@ -11,13 +11,10 @@ const streak100 = require('../../assets/streak-100.png');
 interface StreakBadgeProps {
   streak: StreakInfo;
   size?: 'small' | 'large';
+  onPress?: () => void;
 }
 
-export function StreakBadge({ streak, size = 'small' }: StreakBadgeProps) {
-  if (streak.currentStreak === 0) {
-    return null;
-  }
-
+export function StreakBadge({ streak, size = 'small', onPress }: StreakBadgeProps) {
   // Determine which badge to show based on milestone
   const getBadgeImage = () => {
     if (streak.currentStreak >= 100) return streak100;
@@ -31,23 +28,26 @@ export function StreakBadge({ streak, size = 'small' }: StreakBadgeProps) {
     if (streak.currentStreak >= 100) return '#F43F5E'; // Rose - legendary
     if (streak.currentStreak >= 30) return '#A78BFA'; // Purple - epic
     if (streak.currentStreak >= 7) return '#10B981'; // Emerald - solid
-    return '#F59E0B'; // Amber - building
+    if (streak.currentStreak > 0) return '#F59E0B'; // Amber - building
+    return '#64748B'; // Gray - no streak
   };
 
   const isLarge = size === 'large';
   const imageSize = isLarge ? 32 : 20;
 
-  return (
+  const content = (
     <View style={[
       styles.container,
       isLarge && styles.containerLarge,
       { borderColor: getBadgeColor() + '40' },
+      streak.currentStreak === 0 && styles.containerInactive,
     ]}>
       <Image
         source={getBadgeImage()}
         style={[
           styles.fireImage,
           { width: imageSize, height: imageSize },
+          streak.currentStreak === 0 && styles.imageInactive,
         ]}
         resizeMode="contain"
       />
@@ -60,6 +60,16 @@ export function StreakBadge({ streak, size = 'small' }: StreakBadgeProps) {
       </Text>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
@@ -79,9 +89,15 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     gap: 8,
   },
+  containerInactive: {
+    backgroundColor: '#12121A',
+  },
   fireImage: {
     width: 20,
     height: 20,
+  },
+  imageInactive: {
+    opacity: 0.5,
   },
   streakCount: {
     fontSize: 15,
