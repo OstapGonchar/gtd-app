@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Weekly Five",
-    "slug": "weekly-five",
+    "name": "Q2 Focus",
+    "slug": "q2-focus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,6 +16,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.q2focus.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f0f1a"
@@ -25,12 +26,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "Weekly Five",
-      "shortName": "W5",
-      "description": "Ship 5 things. Every week.",
+      "name": "Q2 Focus",
+      "shortName": "Q2",
+      "description": "Track what matters with the Eisenhower Matrix",
       "backgroundColor": "#0f0f1a",
       "themeColor": "#8b5cf6"
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "ada595fd-bc50-465e-adbb-dd34d0a12c9f"
+      }
+    }
   }
 }
