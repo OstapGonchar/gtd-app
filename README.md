@@ -81,6 +81,20 @@ npx expo start --web
 # - Clear all data
 ```
 
+## Shipping
+
+```bash
+# Login to Expo
+eas login
+
+#Use to ship APK 
+eas build --platform android --profile preview 
+
+#Use to ship AAB for submission to App Store
+eas build --platform android --profile production
+
+```
+
 ## License
 
 MIT
