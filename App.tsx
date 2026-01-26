@@ -27,6 +27,7 @@ import {
   addCategory,
   deleteCategory,
   addTask,
+  updateTask,
   deleteTask,
   toggleTaskCompletion,
   getDaySummary,
@@ -37,7 +38,7 @@ import {
   getAllTimeStats,
   AllTimeStats,
 } from './src/database';
-import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode as ThemeModeType } from './src/types';
+import { Category, DaySummary, Quadrant, QUADRANT_INFO, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode as ThemeModeType, TaskEntry } from './src/types';
 import { Q2Progress } from './src/components/Q2Progress';
 import { DevTools } from './src/components/DevTools';
 import { CalendarView } from './src/components/CalendarView';
@@ -49,7 +50,7 @@ import { DurationPicker } from './src/components/DurationPicker';
 import { StatsModal } from './src/components/StatsModal';
 import { AboutModal } from './src/components/AboutModal';
 
-type TabType = 'today' | 'calendar' | 'categories' | 'settings';
+type TabType = 'plan' | 'calendar' | 'categories' | 'settings';
 
 // Get status bar height for proper padding
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios'
@@ -59,7 +60,8 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'ios'
 function AppContent() {
   const { theme, themeMode, setThemeMode, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('today');
+  const [activeTab, setActiveTab] = useState<TabType>('plan');
+  const [planDate, setPlanDate] = useState(getTodayDate());
 
   // Data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -84,6 +86,7 @@ function AppContent() {
 
   // Add task modal
   const [isAddTaskModalVisible, setIsAddTaskModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskEntry | null>(null);
 
   // Category form
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -93,15 +96,15 @@ function AppContent() {
   const [newDurationValue, setNewDurationValue] = useState('');
 
   const loadData = useCallback(async () => {
-    const [cats, today, streakInfo, appSettings, stats] = await Promise.all([
+    const [cats, planData, streakInfo, appSettings, stats] = await Promise.all([
       getCategories(),
-      getDaySummary(getTodayDate()),
+      getDaySummary(planDate),
       calculateStreak(),
       getSettings(),
       getAllTimeStats(),
     ]);
     setCategories(cats);
-    setTodaySummary(today);
+    setTodaySummary(planData);
     setStreak(streakInfo);
     setSettings(appSettings);
     setAllTimeStats(stats);
@@ -110,7 +113,7 @@ function AppContent() {
     if (appSettings.themeMode && appSettings.themeMode !== themeMode) {
       setThemeMode(appSettings.themeMode);
     }
-  }, [themeMode, setThemeMode]);
+  }, [themeMode, setThemeMode, planDate]);
 
   const loadMonthData = useCallback(async () => {
     const year = currentMonth.getFullYear();
@@ -146,9 +149,49 @@ function AppContent() {
   }, [activeTab, isLoading, loadMonthData]);
 
   const handleAddTask = async (title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
-    await addTask(title, quadrant, categoryId, duration);
+    await addTask(title, quadrant, categoryId, duration, planDate);
     loadData();
   };
+
+  const handleUpdateTask = async (taskId: string, title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
+    await updateTask(taskId, { title, quadrant, categoryId, duration });
+    loadData();
+  };
+
+  const handleEditTask = (task: TaskEntry) => {
+    setEditingTask(task);
+    setIsAddTaskModalVisible(true);
+  };
+
+  const handleCloseTaskModal = () => {
+    setIsAddTaskModalVisible(false);
+    setEditingTask(null);
+  };
+
+  // Date navigation helpers
+  const isToday = planDate === getTodayDate();
+
+  const goToNextDay = () => {
+    const current = new Date(planDate + 'T12:00:00');
+    current.setDate(current.getDate() + 1);
+    setPlanDate(current.toISOString().split('T')[0]);
+  };
+
+  const goToPrevDay = () => {
+    const current = new Date(planDate + 'T12:00:00');
+    const today = new Date(getTodayDate() + 'T12:00:00');
+    // Only allow going back to today, not past
+    if (current > today) {
+      current.setDate(current.getDate() - 1);
+      setPlanDate(current.toISOString().split('T')[0]);
+    }
+  };
+
+  const goToToday = () => {
+    setPlanDate(getTodayDate());
+  };
+
+  const canGoBack = planDate > getTodayDate();
 
   const handleDeleteTask = async (taskId: string) => {
     const confirmed = Platform.OS === 'web'
@@ -275,7 +318,7 @@ function AppContent() {
 
       {/* Tab Bar */}
       <View style={[styles.tabBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        {(['today', 'calendar', 'categories', 'settings'] as TabType[]).map((tab) => (
+        {(['plan', 'calendar', 'categories', 'settings'] as TabType[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[
@@ -289,19 +332,42 @@ function AppContent() {
               { color: theme.colors.textMuted },
               activeTab === tab && styles.tabTextActive
             ]}>
-              {tab === 'today' ? 'Today' : tab === 'calendar' ? 'Calendar' : tab === 'categories' ? 'Categories' : 'Settings'}
+              {tab === 'plan' ? 'Plan' : tab === 'calendar' ? 'Calendar' : tab === 'categories' ? 'Categories' : 'Settings'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Today Tab */}
-      {activeTab === 'today' && (
+      {/* Plan Tab */}
+      {activeTab === 'plan' && (
         <View style={styles.todayContainer}>
           <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-            {/* Today's Progress */}
+            {/* Date Navigation */}
+            <View style={styles.dateNavigation}>
+              <TouchableOpacity
+                style={[styles.dateNavButton, { opacity: canGoBack ? 1 : 0.3 }]}
+                onPress={goToPrevDay}
+                disabled={!canGoBack}
+              >
+                <Text style={[styles.dateNavArrow, { color: theme.colors.text }]}>{'<'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={goToToday} style={styles.dateTitleContainer}>
+                <Text style={[styles.dateTitle, { color: theme.colors.text }]}>
+                  {formatDate(planDate)}
+                </Text>
+                {!isToday && (
+                  <Text style={[styles.todayHint, { color: theme.colors.primary }]}>Tap for Today</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dateNavButton} onPress={goToNextDay}>
+                <Text style={[styles.dateNavArrow, { color: theme.colors.text }]}>{'>'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Progress */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{formatDate(getTodayDate())}</Text>
               {todaySummary && (
                 <Q2Progress
                   quadrantMinutes={todaySummary.quadrantMinutes}
@@ -312,18 +378,23 @@ function AppContent() {
               )}
             </View>
 
-            {/* Today's Tasks */}
+            {/* Tasks */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 {todaySummary && todaySummary.tasks.length > 0
-                  ? `Today's Log (${todaySummary.tasks.length})`
-                  : "Today's Log"}
+                  ? `${isToday ? "Today's" : "Planned"} Log (${todaySummary.tasks.length})`
+                  : `${isToday ? "Today's" : "Planned"} Log`}
               </Text>
               {todaySummary && todaySummary.tasks.length > 0 ? (
                 todaySummary.tasks.map((task) => {
                   const category = getCategoryById(task.categoryId);
                   return (
-                    <View key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    <TouchableOpacity
+                      key={task.id}
+                      style={[styles.taskItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                      onPress={() => handleEditTask(task)}
+                      activeOpacity={0.7}
+                    >
                       {/* Checkbox */}
                       <TouchableOpacity
                         style={[
@@ -366,7 +437,7 @@ function AppContent() {
                       >
                         <Text style={[styles.deleteButtonText, { color: theme.colors.textMuted }]}>{'\u00D7'}</Text>
                       </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               ) : (
@@ -376,8 +447,12 @@ function AppContent() {
                     style={styles.emptyTodayImage}
                     resizeMode="contain"
                   />
-                  <Text style={[styles.emptyTodayText, { color: theme.colors.text }]}>Start your focus journey</Text>
-                  <Text style={[styles.emptyTodaySubtext, { color: theme.colors.textMuted }]}>Tap + to log your first activity</Text>
+                  <Text style={[styles.emptyTodayText, { color: theme.colors.text }]}>
+                    {isToday ? 'Start your focus journey' : 'Plan ahead'}
+                  </Text>
+                  <Text style={[styles.emptyTodaySubtext, { color: theme.colors.textMuted }]}>
+                    Tap + to {isToday ? 'log your first activity' : 'add a planned task'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -398,8 +473,10 @@ function AppContent() {
         visible={isAddTaskModalVisible}
         categories={categories}
         durationPresets={settings.durationPresets}
-        onClose={() => setIsAddTaskModalVisible(false)}
+        onClose={handleCloseTaskModal}
         onAdd={handleAddTask}
+        editingTask={editingTask}
+        onUpdate={handleUpdateTask}
       />
 
       {/* Calendar Tab (renamed from History) */}
@@ -680,6 +757,35 @@ const styles = StyleSheet.create({
   },
   todayContainer: {
     flex: 1,
+  },
+  dateNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  dateNavButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateNavArrow: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  dateTitleContainer: {
+    alignItems: 'center',
+  },
+  dateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  todayHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
   fab: {
     position: 'absolute',

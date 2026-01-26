@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Category, Quadrant } from '../types';
+import { Category, Quadrant, TaskEntry } from '../types';
 import { QuadrantPicker } from './QuadrantPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { DurationPicker } from './DurationPicker';
@@ -22,6 +22,8 @@ interface AddTaskModalProps {
   durationPresets: number[];
   onClose: () => void;
   onAdd: (title: string, quadrant: Quadrant, categoryId: string, duration: number) => void;
+  editingTask?: TaskEntry | null;
+  onUpdate?: (taskId: string, title: string, quadrant: Quadrant, categoryId: string, duration: number) => void;
 }
 
 export function AddTaskModal({
@@ -30,6 +32,8 @@ export function AddTaskModal({
   durationPresets,
   onClose,
   onAdd,
+  editingTask,
+  onUpdate,
 }: AddTaskModalProps) {
   const { theme } = useTheme();
   const [title, setTitle] = useState('');
@@ -37,16 +41,36 @@ export function AddTaskModal({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [duration, setDuration] = useState(30);
 
-  // Set default category when modal opens
-  useEffect(() => {
-    if (visible && !categoryId && categories.length > 0) {
-      setCategoryId(categories[0].id);
-    }
-  }, [visible, categoryId, categories]);
+  const isEditing = !!editingTask;
 
-  const handleAdd = () => {
+  // Set form values when editing or set defaults when adding
+  useEffect(() => {
+    if (visible) {
+      if (editingTask) {
+        setTitle(editingTask.title);
+        setQuadrant(editingTask.quadrant);
+        setCategoryId(editingTask.categoryId);
+        setDuration(editingTask.duration);
+      } else {
+        // Reset for new task
+        setTitle('');
+        setQuadrant(null);
+        if (categories.length > 0 && !categoryId) {
+          setCategoryId(categories[0].id);
+        }
+        setDuration(30);
+      }
+    }
+  }, [visible, editingTask, categories]);
+
+  const handleSubmit = () => {
     if (!title.trim() || !quadrant || !categoryId) return;
-    onAdd(title.trim(), quadrant, categoryId, duration);
+
+    if (isEditing && onUpdate && editingTask) {
+      onUpdate(editingTask.id, title.trim(), quadrant, categoryId, duration);
+    } else {
+      onAdd(title.trim(), quadrant, categoryId, duration);
+    }
     // Reset form
     setTitle('');
     setQuadrant(null);
@@ -54,7 +78,7 @@ export function AddTaskModal({
     onClose();
   };
 
-  const canAdd = title.trim() && quadrant && categoryId;
+  const canSubmit = title.trim() && quadrant && categoryId;
 
   return (
     <Modal
@@ -76,14 +100,14 @@ export function AddTaskModal({
             >
               <Text style={[styles.closeButtonText, { color: theme.colors.text }]}>{'\u00D7'}</Text>
             </TouchableOpacity>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Log Activity</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{isEditing ? 'Edit Activity' : 'Log Activity'}</Text>
             <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.colors.primary }, !canAdd && styles.addButtonDisabled]}
-              onPress={handleAdd}
-              disabled={!canAdd}
+              style={[styles.addButton, { backgroundColor: theme.colors.primary }, !canSubmit && styles.addButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={!canSubmit}
             >
-              <Text style={[styles.addButtonText, !canAdd && styles.addButtonTextDisabled]}>
-                Add
+              <Text style={[styles.addButtonText, !canSubmit && styles.addButtonTextDisabled]}>
+                {isEditing ? 'Save' : 'Add'}
               </Text>
             </TouchableOpacity>
           </View>
