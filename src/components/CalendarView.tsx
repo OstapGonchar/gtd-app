@@ -119,6 +119,7 @@ export function CalendarView({
                   totalMinutes={summary?.totalMinutes ?? 0}
                   isToday={dateStr === today}
                   isSelected={dateStr === selectedDate}
+                  completion={summary?.completion}
                   onPress={onDayPress}
                 />
               );

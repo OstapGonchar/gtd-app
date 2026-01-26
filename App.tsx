@@ -71,6 +71,7 @@ function AppContent() {
     totalDays: 0, totalMinutes: 0, totalTasks: 0,
     quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 },
     q2Percentage: 0, avgDailyMinutes: 0, avgDailyQ2Percentage: 0, firstActiveDate: null,
+    completedTasks: 0, completionPercentage: 0, q2Tasks: 0, q2CompletedTasks: 0, q2CompletionPercentage: 0,
   });
   const [isStatsModalVisible, setIsStatsModalVisible] = useState(false);
   const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
@@ -181,7 +182,14 @@ function AppContent() {
     if (summary) {
       setSelectedDaySummary(summary);
     } else {
-      setSelectedDaySummary({ date, tasks: [], totalMinutes: 0, quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 }, q2Percentage: 0 });
+      setSelectedDaySummary({
+        date,
+        tasks: [],
+        totalMinutes: 0,
+        quadrantMinutes: { q1: 0, q2: 0, q3: 0, q4: 0 },
+        q2Percentage: 0,
+        completion: { total: 0, completed: 0, percentage: 0, q2Total: 0, q2Completed: 0, q2Percentage: 0 },
+      });
     }
     setIsDayModalVisible(true);
   };
@@ -300,6 +308,7 @@ function AppContent() {
                   quadrantMinutes={todaySummary.quadrantMinutes}
                   totalMinutes={todaySummary.totalMinutes}
                   q2Percentage={todaySummary.q2Percentage}
+                  completion={todaySummary.completion}
                 />
               )}
             </View>

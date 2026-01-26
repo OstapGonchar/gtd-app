@@ -27,12 +27,23 @@ export interface QuadrantBreakdown {
   q4: number;
 }
 
+// Completion tracking
+export interface CompletionStats {
+  total: number;
+  completed: number;
+  percentage: number;
+  q2Total: number;
+  q2Completed: number;
+  q2Percentage: number;
+}
+
 export interface DaySummary {
   date: string;
   tasks: TaskEntry[];
   totalMinutes: number;
   quadrantMinutes: QuadrantBreakdown;
   q2Percentage: number;
+  completion: CompletionStats;
 }
 
 export interface WeekSummary {

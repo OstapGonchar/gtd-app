@@ -61,6 +61,7 @@ export function DayDetailModal({
                 quadrantMinutes={daySummary.quadrantMinutes}
                 totalMinutes={daySummary.totalMinutes}
                 q2Percentage={daySummary.q2Percentage}
+                completion={daySummary.completion}
               />
             </View>
 
@@ -95,6 +96,14 @@ export function DayDetailModal({
                   return (
                     <View key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                       <View style={styles.taskHeader}>
+                        {/* Completion indicator */}
+                        <View style={[
+                          styles.completionIndicator,
+                          { borderColor: task.completed ? theme.colors.q2 : theme.colors.textMuted },
+                          task.completed && { backgroundColor: theme.colors.q2 }
+                        ]}>
+                          {task.completed && <Text style={styles.checkmark}>✓</Text>}
+                        </View>
                         <View
                           style={[
                             styles.quadrantBadge,
@@ -103,7 +112,11 @@ export function DayDetailModal({
                         >
                           <Text style={styles.quadrantText}>{quadrant.label}</Text>
                         </View>
-                        <Text style={[styles.taskTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                        <Text style={[
+                          styles.taskTitle,
+                          { color: theme.colors.text },
+                          task.completed && styles.taskTitleCompleted
+                        ]} numberOfLines={1}>
                           {task.title}
                         </Text>
                         <Text style={[styles.taskDuration, { color: theme.colors.textSecondary }]}>
@@ -210,6 +223,24 @@ const styles = StyleSheet.create({
   taskHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  completionIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmark: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  taskTitleCompleted: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
   quadrantBadge: {
     paddingHorizontal: 10,

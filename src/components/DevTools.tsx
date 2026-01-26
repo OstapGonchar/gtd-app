@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { clearAllData, seedDemoData, initDB } from '../database';
+import { clearAllData, initDB } from '../database';
+import { demoDataGenerator } from '../demoData';
 
 interface DevToolsProps {
   onDataReset: () => void;
@@ -13,14 +14,15 @@ export function DevTools({ onDataReset }: DevToolsProps) {
   }
 
   const handleLoadDemo = async () => {
+    const preview = demoDataGenerator.getGenerationPreview(60);
     const confirmed = Platform.OS === 'web'
-      ? window.confirm('This will replace all data with 2 months of demo history. Continue?')
+      ? window.confirm(`This will replace all data with ~${preview.estimatedDays} days of demo history (~${preview.estimatedTasks} tasks). Continue?`)
       : true;
 
     if (confirmed) {
       await clearAllData();
       await initDB(); // Re-seed categories
-      await seedDemoData(true);
+      await demoDataGenerator.generateDemoData(60, true);
       onDataReset();
     }
   };

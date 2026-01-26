@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { QuadrantBreakdown, QUADRANT_INFO } from '../types';
+import { QuadrantBreakdown, QUADRANT_INFO, CompletionStats } from '../types';
 import { formatDuration } from '../database';
 import { useTheme } from '../ThemeContext';
 
@@ -11,13 +11,14 @@ interface Q2ProgressProps {
   quadrantMinutes: QuadrantBreakdown;
   totalMinutes: number;
   q2Percentage: number;
+  completion?: CompletionStats;
   showBreakdown?: boolean;
 }
 
-export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBreakdown = true }: Q2ProgressProps) {
+export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, completion, showBreakdown = true }: Q2ProgressProps) {
   const { theme } = useTheme();
 
-  if (totalMinutes === 0) {
+  if (totalMinutes === 0 && (!completion || completion.total === 0)) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Image
@@ -48,7 +49,6 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
     if (q2Percentage >= 20) {
       return { text: 'Room to improve Q2 time', color: theme.colors.q3 };
     }
-    // Calculate which quadrant is dominating
     const q1Percent = totalMinutes > 0 ? (quadrantMinutes.q1 / totalMinutes) * 100 : 0;
     const q3Percent = totalMinutes > 0 ? (quadrantMinutes.q3 / totalMinutes) * 100 : 0;
     const q4Percent = totalMinutes > 0 ? (quadrantMinutes.q4 / totalMinutes) * 100 : 0;
@@ -67,8 +67,78 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
 
   const guidance = getGuidanceText();
 
+  // Completion status helpers
+  const hasCompletion = completion && completion.total > 0;
+  const allCompleted = hasCompletion && completion.completed === completion.total;
+  const q2AllCompleted = hasCompletion && completion.q2Total > 0 && completion.q2Completed === completion.q2Total;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      {/* Completion Progress - Prominent at top */}
+      {hasCompletion && (
+        <View style={[styles.completionSection, { borderBottomColor: theme.colors.border }]}>
+          <View style={styles.completionRow}>
+            <View style={styles.completionItem}>
+              <Text style={[styles.completionLabel, { color: theme.colors.textSecondary }]}>Tasks Done</Text>
+              <View style={styles.completionValue}>
+                <Text style={[styles.completionNumber, { color: allCompleted ? theme.colors.q2 : theme.colors.text }]}>
+                  {completion.completed}/{completion.total}
+                </Text>
+                {allCompleted && <Text style={styles.completionCheck}> ✓</Text>}
+              </View>
+              <View style={[styles.miniProgressBar, { backgroundColor: theme.colors.surfaceAlt }]}>
+                <View
+                  style={[
+                    styles.miniProgressFill,
+                    {
+                      width: `${completion.percentage}%`,
+                      backgroundColor: allCompleted ? theme.colors.q2 : theme.colors.primary,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
+            {completion.q2Total > 0 && (
+              <View style={styles.completionItem}>
+                <Text style={[styles.completionLabel, { color: theme.colors.q2 }]}>Q2 Tasks</Text>
+                <View style={styles.completionValue}>
+                  <Text style={[styles.completionNumber, { color: q2AllCompleted ? theme.colors.q2 : theme.colors.text }]}>
+                    {completion.q2Completed}/{completion.q2Total}
+                  </Text>
+                  {q2AllCompleted && <Text style={styles.completionCheck}> ✓</Text>}
+                </View>
+                <View style={[styles.miniProgressBar, { backgroundColor: theme.colors.surfaceAlt }]}>
+                  <View
+                    style={[
+                      styles.miniProgressFill,
+                      {
+                        width: `${completion.q2Percentage}%`,
+                        backgroundColor: theme.colors.q2,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+
+          {allCompleted ? (
+            <Text style={[styles.completionMessage, { color: theme.colors.q2 }]}>
+              🎉 All tasks completed!
+            </Text>
+          ) : completion.completed > 0 ? (
+            <Text style={[styles.completionMessage, { color: theme.colors.textMuted }]}>
+              {completion.total - completion.completed} task{completion.total - completion.completed !== 1 ? 's' : ''} remaining
+            </Text>
+          ) : (
+            <Text style={[styles.completionMessage, { color: theme.colors.q3 }]}>
+              Start checking off your tasks!
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* Main Q2 Score */}
       <View style={styles.scoreContainer}>
         <Text style={[styles.scoreLabel, { color: theme.colors.textSecondary }]}>Q2 Focus</Text>
@@ -132,7 +202,7 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, showBr
 const styles = StyleSheet.create({
   container: {
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
   },
   emptyContainer: {
@@ -156,9 +226,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
   },
+  completionSection: {
+    borderBottomWidth: 1,
+    paddingBottom: 16,
+    marginBottom: 16,
+  },
+  completionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  completionItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  completionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  completionValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  completionNumber: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  completionCheck: {
+    fontSize: 18,
+    color: '#10B981',
+  },
+  miniProgressBar: {
+    height: 6,
+    width: 80,
+    borderRadius: 3,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  miniProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  completionMessage: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   scoreContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   scoreLabel: {
     fontSize: 13,
@@ -190,7 +309,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   breakdownContainer: {
-    marginTop: 12,
+    marginTop: 8,
   },
   barContainer: {
     flexDirection: 'row',

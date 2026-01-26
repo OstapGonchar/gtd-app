@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Category, TaskEntry, DaySummary, QuadrantBreakdown, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode } from './types';
+import { Category, TaskEntry, DaySummary, QuadrantBreakdown, StreakInfo, AppSettings, DEFAULT_DURATION_PRESETS, ThemeMode, CompletionStats } from './types';
 
 const TASKS_KEY = 'q2_tasks';
 const CATEGORIES_KEY = 'q2_categories';
@@ -162,10 +162,28 @@ function calculateQuadrantBreakdown(tasks: TaskEntry[]): QuadrantBreakdown {
   );
 }
 
+function calculateCompletionStats(tasks: TaskEntry[]): CompletionStats {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const q2Tasks = tasks.filter(t => t.quadrant === 2);
+  const q2Total = q2Tasks.length;
+  const q2Completed = q2Tasks.filter(t => t.completed).length;
+
+  return {
+    total,
+    completed,
+    percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+    q2Total,
+    q2Completed,
+    q2Percentage: q2Total > 0 ? Math.round((q2Completed / q2Total) * 100) : 0,
+  };
+}
+
 export async function getDaySummary(date: string): Promise<DaySummary> {
   const tasks = await getTasksForDate(date);
   const quadrantMinutes = calculateQuadrantBreakdown(tasks);
   const totalMinutes = tasks.reduce((sum, t) => sum + t.duration, 0);
+  const completion = calculateCompletionStats(tasks);
 
   return {
     date,
@@ -173,6 +191,7 @@ export async function getDaySummary(date: string): Promise<DaySummary> {
     totalMinutes,
     quadrantMinutes,
     q2Percentage: totalMinutes > 0 ? Math.round((quadrantMinutes.q2 / totalMinutes) * 100) : 0,
+    completion,
   };
 }
 
@@ -210,12 +229,14 @@ export async function getMonthSummaries(year: number, month: number): Promise<Ma
   for (const [date, dateTasks] of tasksByDate) {
     const quadrantMinutes = calculateQuadrantBreakdown(dateTasks);
     const totalMinutes = dateTasks.reduce((sum, t) => sum + t.duration, 0);
+    const completion = calculateCompletionStats(dateTasks);
     summaries.set(date, {
       date,
       tasks: dateTasks.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       totalMinutes,
       quadrantMinutes,
       q2Percentage: totalMinutes > 0 ? Math.round((quadrantMinutes.q2 / totalMinutes) * 100) : 0,
+      completion,
     });
   }
 
@@ -291,6 +312,12 @@ export interface AllTimeStats {
   avgDailyMinutes: number;
   avgDailyQ2Percentage: number;
   firstActiveDate: string | null;
+  // Completion stats
+  completedTasks: number;
+  completionPercentage: number;
+  q2Tasks: number;
+  q2CompletedTasks: number;
+  q2CompletionPercentage: number;
 }
 
 export async function getAllTimeStats(): Promise<AllTimeStats> {
@@ -306,6 +333,11 @@ export async function getAllTimeStats(): Promise<AllTimeStats> {
       avgDailyMinutes: 0,
       avgDailyQ2Percentage: 0,
       firstActiveDate: null,
+      completedTasks: 0,
+      completionPercentage: 0,
+      q2Tasks: 0,
+      q2CompletedTasks: 0,
+      q2CompletionPercentage: 0,
     };
   }
 
@@ -330,6 +362,12 @@ export async function getAllTimeStats(): Promise<AllTimeStats> {
     }
   }
 
+  // Calculate completion stats
+  const completedTasks = tasks.filter(t => t.completed).length;
+  const q2TasksList = tasks.filter(t => t.quadrant === 2);
+  const q2Tasks = q2TasksList.length;
+  const q2CompletedTasks = q2TasksList.filter(t => t.completed).length;
+
   return {
     totalDays: dates.length,
     totalMinutes,
@@ -341,6 +379,11 @@ export async function getAllTimeStats(): Promise<AllTimeStats> {
       ? Math.round(dailyQ2Percentages.reduce((a, b) => a + b, 0) / dailyQ2Percentages.length)
       : 0,
     firstActiveDate: dates[0] || null,
+    completedTasks,
+    completionPercentage: tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0,
+    q2Tasks,
+    q2CompletedTasks,
+    q2CompletionPercentage: q2Tasks > 0 ? Math.round((q2CompletedTasks / q2Tasks) * 100) : 0,
   };
 }
 
@@ -380,82 +423,12 @@ export async function initDB(): Promise<void> {
   }
 }
 
-// ============ Demo Data ============
-
-const SAMPLE_TASKS = [
-  { title: 'Team standup', quadrant: 3 as const, category: 'Meetings', duration: 30 },
-  { title: 'Fixed production bug', quadrant: 1 as const, category: 'Firefighting', duration: 120 },
-  { title: '1:1 with Sarah', quadrant: 2 as const, category: '1:1s', duration: 45 },
-  { title: 'Slack/email triage', quadrant: 3 as const, category: 'Email/Slack', duration: 60 },
-  { title: 'Strategic roadmap planning', quadrant: 2 as const, category: 'Planning', duration: 90 },
-  { title: 'Code review', quadrant: 2 as const, category: 'Deep Work', duration: 45 },
-  { title: 'Interview candidate', quadrant: 2 as const, category: 'Meetings', duration: 60 },
-  { title: 'Sprint planning', quadrant: 3 as const, category: 'Meetings', duration: 90 },
-  { title: 'Debugged flaky test', quadrant: 1 as const, category: 'Firefighting', duration: 60 },
-  { title: 'Read engineering blog', quadrant: 2 as const, category: 'Learning', duration: 30 },
-  { title: 'Expense reports', quadrant: 4 as const, category: 'Admin', duration: 30 },
-  { title: 'Wrote technical spec', quadrant: 2 as const, category: 'Deep Work', duration: 120 },
-  { title: 'Customer escalation call', quadrant: 1 as const, category: 'Firefighting', duration: 45 },
-  { title: 'Architecture review', quadrant: 2 as const, category: 'Deep Work', duration: 90 },
-  { title: 'Updated team wiki', quadrant: 4 as const, category: 'Admin', duration: 30 },
-  { title: '1:1 with manager', quadrant: 2 as const, category: '1:1s', duration: 30 },
-  { title: 'Browsed LinkedIn', quadrant: 4 as const, category: 'Admin', duration: 20 },
-  { title: 'Prepared board deck', quadrant: 2 as const, category: 'Planning', duration: 180 },
-];
+// ============ Utility ============
 
 export function getDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   return date.toISOString().split('T')[0];
-}
-
-export async function seedDemoData(force: boolean = false): Promise<void> {
-  if (!force) {
-    const tasks = await getAllTasks();
-    if (tasks.length > 0) return;
-  }
-
-  const categories = await getAllCategories();
-  const categoryMap = new Map(categories.map(c => [c.name, c.id]));
-
-  const tasks: TaskEntry[] = [];
-
-  // Create 60 days of demo data (2 months)
-  for (let daysAgo = 60; daysAgo >= 1; daysAgo--) {
-    // Skip weekends randomly
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    if (date.getDay() === 0 || date.getDay() === 6) {
-      if (Math.random() > 0.3) continue; // 70% chance to skip weekends
-    }
-
-    const dateStr = getDateDaysAgo(daysAgo);
-    const taskCount = Math.floor(Math.random() * 4) + 4; // 4-7 tasks per day
-    const usedIndices = new Set<number>();
-
-    for (let i = 0; i < taskCount; i++) {
-      let idx: number;
-      do {
-        idx = Math.floor(Math.random() * SAMPLE_TASKS.length);
-      } while (usedIndices.has(idx));
-      usedIndices.add(idx);
-
-      const sample = SAMPLE_TASKS[idx];
-      const categoryId = categoryMap.get(sample.category) || categories[0].id;
-
-      tasks.push({
-        id: generateId(),
-        title: sample.title,
-        quadrant: sample.quadrant,
-        categoryId,
-        duration: sample.duration + (Math.floor(Math.random() * 3) - 1) * 15, // +/- 15min variance
-        date: dateStr,
-        createdAt: new Date(dateStr + 'T' + String(9 + i).padStart(2, '0') + ':00:00').toISOString(),
-      });
-    }
-  }
-
-  await saveTasks(tasks);
 }
 
 export async function clearAllData(): Promise<void> {

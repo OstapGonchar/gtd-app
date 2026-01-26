@@ -182,6 +182,43 @@ export function StatsModal({
               </View>
             </View>
 
+            {/* Completion Stats */}
+            {allTimeStats.totalTasks > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Task Completion</Text>
+                <View style={styles.completionRow}>
+                  <View style={[styles.completionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    <Text style={[styles.completionValue, { color: allTimeStats.completionPercentage >= 70 ? theme.colors.q2 : theme.colors.text }]}>
+                      {allTimeStats.completionPercentage}%
+                    </Text>
+                    <Text style={[styles.completionLabel, { color: theme.colors.textMuted }]}>Overall</Text>
+                    <Text style={[styles.completionDetail, { color: theme.colors.textSecondary }]}>
+                      {allTimeStats.completedTasks}/{allTimeStats.totalTasks} done
+                    </Text>
+                    {/* Mini progress bar */}
+                    <View style={[styles.completionBar, { backgroundColor: theme.colors.surfaceAlt }]}>
+                      <View style={[styles.completionBarFill, { width: `${allTimeStats.completionPercentage}%`, backgroundColor: allTimeStats.completionPercentage >= 70 ? theme.colors.q2 : theme.colors.primary }]} />
+                    </View>
+                  </View>
+                  {allTimeStats.q2Tasks > 0 && (
+                    <View style={[styles.completionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      <Text style={[styles.completionValue, { color: theme.colors.q2 }]}>
+                        {allTimeStats.q2CompletionPercentage}%
+                      </Text>
+                      <Text style={[styles.completionLabel, { color: theme.colors.q2 }]}>Q2 Tasks</Text>
+                      <Text style={[styles.completionDetail, { color: theme.colors.textSecondary }]}>
+                        {allTimeStats.q2CompletedTasks}/{allTimeStats.q2Tasks} done
+                      </Text>
+                      {/* Mini progress bar */}
+                      <View style={[styles.completionBar, { backgroundColor: theme.colors.surfaceAlt }]}>
+                        <View style={[styles.completionBarFill, { width: `${allTimeStats.q2CompletionPercentage}%`, backgroundColor: theme.colors.q2 }]} />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
             {/* All-Time Distribution */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>All-Time Distribution</Text>
@@ -445,5 +482,42 @@ const styles = StyleSheet.create({
   guidanceMessage: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  completionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  completionCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  completionValue: {
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  completionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  completionDetail: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  completionBar: {
+    height: 6,
+    width: '100%',
+    borderRadius: 3,
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  completionBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

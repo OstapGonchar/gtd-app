@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { CompletionStats } from '../types';
 import { useTheme } from '../ThemeContext';
 
 interface CalendarDayCellProps {
@@ -9,6 +10,7 @@ interface CalendarDayCellProps {
   totalMinutes: number;
   isToday: boolean;
   isSelected: boolean;
+  completion?: CompletionStats;
   onPress: (date: string) => void;
 }
 
@@ -19,6 +21,7 @@ export function CalendarDayCell({
   totalMinutes,
   isToday,
   isSelected,
+  completion,
   onPress,
 }: CalendarDayCellProps) {
   const { theme, isDark } = useTheme();
@@ -29,6 +32,8 @@ export function CalendarDayCell({
 
   const hasData = totalMinutes > 0;
   const intensity = q2Percentage !== null ? getIntensity(q2Percentage) : 0;
+  const allCompleted = completion && completion.total > 0 && completion.completed === completion.total;
+  const hasIncomplete = completion && completion.total > 0 && completion.completed < completion.total;
 
   return (
     <TouchableOpacity
@@ -38,6 +43,7 @@ export function CalendarDayCell({
         hasData && { backgroundColor: getBackgroundColor(intensity, isDark) },
         isToday && [styles.cellToday, { borderColor: theme.colors.primary }],
         isSelected && { borderWidth: 2, borderColor: theme.colors.text },
+        allCompleted && styles.cellCompleted,
       ]}
       onPress={() => onPress(date)}
       activeOpacity={0.7}
@@ -54,12 +60,28 @@ export function CalendarDayCell({
       </Text>
       {hasData && (
         <View style={styles.indicator}>
-          <View
-            style={[
-              styles.indicatorDot,
-              { backgroundColor: getDotColor(q2Percentage || 0) },
-            ]}
-          />
+          {allCompleted ? (
+            <Text style={styles.completedCheck}>✓</Text>
+          ) : hasIncomplete ? (
+            <View style={styles.partialIndicator}>
+              <View
+                style={[
+                  styles.indicatorDot,
+                  { backgroundColor: getDotColor(q2Percentage || 0) },
+                ]}
+              />
+              <Text style={[styles.taskCount, { color: theme.colors.textMuted }]}>
+                {completion.completed}/{completion.total}
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.indicatorDot,
+                { backgroundColor: getDotColor(q2Percentage || 0) },
+              ]}
+            />
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -123,17 +145,35 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  cellCompleted: {
+    borderColor: '#10b981',
+    borderWidth: 2,
+  },
   dayNumber: {
     fontSize: 14,
     fontWeight: '500',
   },
   indicator: {
     position: 'absolute',
-    bottom: 5,
+    bottom: 3,
   },
   indicatorDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
+  },
+  completedCheck: {
+    fontSize: 10,
+    color: '#10b981',
+    fontWeight: '700',
+  },
+  partialIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  taskCount: {
+    fontSize: 8,
+    fontWeight: '600',
   },
 });
