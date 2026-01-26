@@ -56,67 +56,54 @@ export function StatsModal({
   };
 
   const getGuidanceText = () => {
-    const q2 = allTimeStats.q2Percentage;
-    const q1 = allTimeStats.quadrantMinutes.q1;
-    const q3 = allTimeStats.quadrantMinutes.q3;
-    const q4 = allTimeStats.quadrantMinutes.q4;
-    const total = allTimeStats.totalMinutes;
+    // Guidance now primarily based on Q2 COMPLETION, not time distribution
+    const q2CompletionPct = allTimeStats.q2CompletionPercentage;
+    const hasQ2Tasks = allTimeStats.q2Tasks > 0;
+    const totalTasks = allTimeStats.totalTasks;
 
-    if (total === 0) {
+    if (totalTasks === 0) {
       return {
         title: 'Ready to begin',
-        message: 'Log your first activity to start tracking your focus patterns.',
+        message: 'Add your first task to start tracking your focus and completion.',
         color: theme.colors.textSecondary,
       };
     }
 
-    if (q2 >= 40) {
+    if (!hasQ2Tasks) {
       return {
-        title: 'Excellent focus!',
-        message: 'You\'re spending most of your time on important, non-urgent work. This is the ideal pattern for long-term success.',
-        color: theme.colors.q2,
-      };
-    }
-
-    if (q2 >= 30) {
-      return {
-        title: 'Good progress',
-        message: 'You have a solid foundation. Try to reduce Q3 activities by delegating or declining non-essential requests.',
-        color: theme.colors.q2,
-      };
-    }
-
-    const q1Percent = total > 0 ? (q1 / total) * 100 : 0;
-    const q3Percent = total > 0 ? (q3 / total) * 100 : 0;
-    const q4Percent = total > 0 ? (q4 / total) * 100 : 0;
-
-    if (q1Percent > 30) {
-      return {
-        title: 'Too much firefighting',
-        message: 'High Q1 time indicates reactive work. Invest more in Q2 planning to prevent crises before they happen.',
-        color: theme.colors.q1,
-      };
-    }
-
-    if (q3Percent > 30) {
-      return {
-        title: 'Consider delegating more',
-        message: 'You\'re spending a lot of time on urgent but less important tasks. Practice saying no or delegating these activities.',
+        title: 'Add Q2 tasks',
+        message: 'You have tasks but none are Q2 (Important, Not Urgent). Add some Q2 tasks to build long-term success.',
         color: theme.colors.q3,
       };
     }
 
-    if (q4Percent > 20) {
+    if (q2CompletionPct >= 80) {
       return {
-        title: 'Watch time-wasters',
-        message: 'Reduce Q4 activities and redirect that time to Q2 strategic work.',
-        color: theme.colors.q4,
+        title: 'Excellent completion!',
+        message: 'You\'re completing most of your important work. Keep this focus on Q2 tasks for long-term success.',
+        color: theme.colors.q2,
+      };
+    }
+
+    if (q2CompletionPct >= 50) {
+      return {
+        title: 'Good progress',
+        message: 'You\'re completing Q2 tasks consistently. Push to finish the remaining ones to maximize your impact.',
+        color: theme.colors.q2,
+      };
+    }
+
+    if (q2CompletionPct > 0) {
+      return {
+        title: 'Keep going',
+        message: 'You\'ve started on your Q2 tasks. Make completing them a priority - that\'s where real focus shows.',
+        color: theme.colors.q3,
       };
     }
 
     return {
-      title: 'Room to improve',
-      message: 'Focus on scheduling more time for important, non-urgent work (Q2) to achieve better long-term results.',
+      title: 'Start completing Q2 tasks',
+      message: 'You have Q2 tasks but haven\'t completed any yet. Focus on checking them off to build momentum.',
       color: theme.colors.q3,
     };
   };
@@ -182,10 +169,10 @@ export function StatsModal({
               </View>
             </View>
 
-            {/* Completion Stats */}
+            {/* Completion Stats - PRIMARY FOCUS */}
             {allTimeStats.totalTasks > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Task Completion</Text>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Q2 Completion</Text>
                 <View style={styles.completionRow}>
                   <View style={[styles.completionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                     <Text style={[styles.completionValue, { color: allTimeStats.completionPercentage >= 70 ? theme.colors.q2 : theme.colors.text }]}>
@@ -219,9 +206,9 @@ export function StatsModal({
               </View>
             )}
 
-            {/* All-Time Distribution */}
+            {/* Time Distribution - Secondary metric */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>All-Time Distribution</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Time Distribution</Text>
 
               {allTimeStats.totalMinutes > 0 ? (
                 <>

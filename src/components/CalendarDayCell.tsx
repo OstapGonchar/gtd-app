@@ -30,10 +30,16 @@ export function CalendarDayCell({
     return <View style={styles.cell} />;
   }
 
-  const hasData = totalMinutes > 0;
-  const intensity = q2Percentage !== null ? getIntensity(q2Percentage) : 0;
+  const hasData = totalMinutes > 0 || (completion && completion.total > 0);
   const allCompleted = completion && completion.total > 0 && completion.completed === completion.total;
   const hasIncomplete = completion && completion.total > 0 && completion.completed < completion.total;
+  const hasQ2Tasks = completion && completion.q2Total > 0;
+  const q2AllCompleted = hasQ2Tasks && completion.q2Completed === completion.q2Total;
+
+  // Intensity now based on Q2 COMPLETION, not time distribution
+  // This reflects actual focus - completing important work
+  const q2CompletionPercent = hasQ2Tasks ? completion.q2Percentage : 0;
+  const intensity = getIntensity(q2CompletionPercent, q2AllCompleted);
 
   return (
     <TouchableOpacity
@@ -67,7 +73,7 @@ export function CalendarDayCell({
               <View
                 style={[
                   styles.indicatorDot,
-                  { backgroundColor: getDotColor(q2Percentage || 0) },
+                  { backgroundColor: getDotColor(q2CompletionPercent) },
                 ]}
               />
               <Text style={[styles.taskCount, { color: theme.colors.textMuted }]}>
@@ -78,7 +84,7 @@ export function CalendarDayCell({
             <View
               style={[
                 styles.indicatorDot,
-                { backgroundColor: getDotColor(q2Percentage || 0) },
+                { backgroundColor: getDotColor(q2CompletionPercent) },
               ]}
             />
           )}
@@ -88,11 +94,13 @@ export function CalendarDayCell({
   );
 }
 
-function getIntensity(q2Percentage: number): number {
-  if (q2Percentage >= 50) return 4;
-  if (q2Percentage >= 35) return 3;
-  if (q2Percentage >= 20) return 2;
-  if (q2Percentage > 0) return 1;
+function getIntensity(q2CompletionPercent: number, q2AllCompleted: boolean): number {
+  // Intensity based on Q2 task COMPLETION, not time distribution
+  if (q2AllCompleted && q2CompletionPercent > 0) return 4; // All Q2 done
+  if (q2CompletionPercent >= 75) return 4;
+  if (q2CompletionPercent >= 50) return 3;
+  if (q2CompletionPercent >= 25) return 2;
+  if (q2CompletionPercent > 0) return 1;
   return 0;
 }
 
@@ -119,10 +127,11 @@ function getBackgroundColor(intensity: number, isDark: boolean): string {
   return colors[intensity] || colors[0];
 }
 
-function getDotColor(q2Percentage: number): string {
-  if (q2Percentage >= 30) return '#10b981';
-  if (q2Percentage >= 15) return '#f59e0b';
-  return '#ef4444';
+function getDotColor(q2CompletionPercent: number): string {
+  // Color based on Q2 completion progress
+  if (q2CompletionPercent >= 50) return '#10b981'; // Green - good progress
+  if (q2CompletionPercent > 0) return '#f59e0b'; // Yellow - started
+  return '#6b7280'; // Gray - no Q2 progress
 }
 
 const styles = StyleSheet.create({

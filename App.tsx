@@ -18,7 +18,6 @@ import { Theme } from './src/theme';
 
 // Import illustrations
 const emptyTodayImage = require('./assets/empty-today.png');
-const emptyHistoryImage = require('./assets/empty-history.png');
 import {
   initDB,
   getTodayDate,

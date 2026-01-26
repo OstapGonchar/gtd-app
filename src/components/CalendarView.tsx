@@ -63,23 +63,25 @@ export function CalendarView({
         </TouchableOpacity>
       </View>
 
-      {/* Month Stats */}
+      {/* Month Stats - Completion-focused */}
       <View style={[styles.statsContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
-              {monthStats.q2Percentage}% <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Q2</Text>
+            <Text style={[styles.statValue, { color: monthStats.q2TotalTasks > 0 ? theme.colors.q2 : theme.colors.textMuted }]}>
+              {monthStats.q2TotalTasks > 0 ? `${monthStats.q2CompletionPercentage}%` : '--'}{' '}
+              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Q2 done</Text>
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
-              {formatDuration(monthStats.totalMinutes)} <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>total</Text>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
+              {monthStats.q2CompletedTasks}/{monthStats.q2TotalTasks}{' '}
+              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Q2 tasks</Text>
             </Text>
           </View>
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.q2 }]}>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
               {monthStats.activeDays} <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>active days</Text>
             </Text>
           </View>
@@ -176,20 +178,44 @@ function calculateMonthStats(summaries: Map<string, DaySummary>) {
   let totalMinutes = 0;
   let totalQ2Minutes = 0;
   let activeDays = 0;
+  let totalTasks = 0;
+  let completedTasks = 0;
+  let q2TotalTasks = 0;
+  let q2CompletedTasks = 0;
 
   for (const summary of summaries.values()) {
     totalMinutes += summary.totalMinutes;
     totalQ2Minutes += summary.quadrantMinutes.q2;
-    if (summary.totalMinutes > 0) {
+    if (summary.totalMinutes > 0 || summary.completion.total > 0) {
       activeDays++;
     }
+    // Aggregate completion stats
+    totalTasks += summary.completion.total;
+    completedTasks += summary.completion.completed;
+    q2TotalTasks += summary.completion.q2Total;
+    q2CompletedTasks += summary.completion.q2Completed;
   }
 
-  const q2Percentage = totalMinutes > 0
+  // Time-based Q2 percentage (secondary metric)
+  const q2TimePercentage = totalMinutes > 0
     ? Math.round((totalQ2Minutes / totalMinutes) * 100)
     : 0;
 
-  return { totalMinutes, q2Percentage, activeDays };
+  // Completion-based Q2 percentage (primary metric)
+  const q2CompletionPercentage = q2TotalTasks > 0
+    ? Math.round((q2CompletedTasks / q2TotalTasks) * 100)
+    : 0;
+
+  return {
+    totalMinutes,
+    q2TimePercentage,
+    q2CompletionPercentage,
+    q2TotalTasks,
+    q2CompletedTasks,
+    activeDays,
+    totalTasks,
+    completedTasks,
+  };
 }
 
 const styles = StyleSheet.create({

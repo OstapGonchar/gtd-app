@@ -18,6 +18,16 @@ interface Q2ProgressProps {
 export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, completion, showBreakdown = true }: Q2ProgressProps) {
   const { theme } = useTheme();
 
+  // Completion status helpers
+  const hasCompletion = completion && completion.total > 0;
+  const hasQ2Tasks = completion && completion.q2Total > 0;
+  const allCompleted = hasCompletion && completion.completed === completion.total;
+  const q2AllCompleted = hasQ2Tasks && completion.q2Completed === completion.q2Total;
+
+  // NEW: Q2 Focus is now based on Q2 task completion, not time distribution
+  // This is the real measure of focus - actually completing important work
+  const q2CompletionPercent = hasQ2Tasks ? completion.q2Percentage : 0;
+
   if (totalMinutes === 0 && (!completion || completion.total === 0)) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -27,50 +37,38 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, comple
           resizeMode="contain"
         />
         <Text style={[styles.emptyText, { color: theme.colors.text }]}>Ready to focus?</Text>
-        <Text style={[styles.emptySubtext, { color: theme.colors.textMuted }]}>Log your first activity to see your Q2 progress</Text>
+        <Text style={[styles.emptySubtext, { color: theme.colors.textMuted }]}>Add your first task to start tracking Q2 completion</Text>
       </View>
     );
   }
 
+  // Emoji based on Q2 completion, not time distribution
   const getEmoji = () => {
-    if (q2Percentage >= 40) return '\u{1F525}'; // Fire
-    if (q2Percentage >= 30) return '\u{1F4AA}'; // Muscle
-    if (q2Percentage >= 20) return '\u{1F44D}'; // Thumbs up
-    return '\u{1F914}'; // Thinking
+    if (!hasQ2Tasks) return '\u{1F914}'; // Thinking - no Q2 tasks
+    if (q2CompletionPercent >= 80) return '\u{1F525}'; // Fire - excellent
+    if (q2CompletionPercent >= 50) return '\u{1F4AA}'; // Muscle - good
+    if (q2CompletionPercent > 0) return '\u{1F44D}'; // Thumbs up - started
+    return '\u{23F3}'; // Hourglass - waiting to start
   };
 
+  // Guidance based on Q2 completion AND having Q2 tasks
   const getGuidanceText = () => {
-    if (q2Percentage >= 40) {
-      return { text: 'Excellent focus!', color: theme.colors.q2 };
+    if (!hasQ2Tasks) {
+      return { text: 'Add some Q2 tasks to focus on', color: theme.colors.q3 };
     }
-    if (q2Percentage >= 30) {
-      return { text: 'Good progress, keep it up!', color: theme.colors.q2 };
+    if (q2AllCompleted) {
+      return { text: 'All Q2 tasks completed!', color: theme.colors.q2 };
     }
-    if (q2Percentage >= 20) {
-      return { text: 'Room to improve Q2 time', color: theme.colors.q3 };
+    if (q2CompletionPercent >= 50) {
+      return { text: 'Great progress on Q2 tasks!', color: theme.colors.q2 };
     }
-    const q1Percent = totalMinutes > 0 ? (quadrantMinutes.q1 / totalMinutes) * 100 : 0;
-    const q3Percent = totalMinutes > 0 ? (quadrantMinutes.q3 / totalMinutes) * 100 : 0;
-    const q4Percent = totalMinutes > 0 ? (quadrantMinutes.q4 / totalMinutes) * 100 : 0;
-
-    if (q1Percent > 30) {
-      return { text: 'High firefighting - plan ahead', color: theme.colors.q1 };
+    if (q2CompletionPercent > 0) {
+      return { text: 'Keep completing Q2 tasks!', color: theme.colors.q2 };
     }
-    if (q3Percent > 30) {
-      return { text: 'Consider delegating more', color: theme.colors.q3 };
-    }
-    if (q4Percent > 20) {
-      return { text: 'Reduce time-wasters', color: theme.colors.q4 };
-    }
-    return { text: 'Focus more on Q2 priorities', color: theme.colors.q3 };
+    return { text: 'Start checking off Q2 tasks!', color: theme.colors.q3 };
   };
 
   const guidance = getGuidanceText();
-
-  // Completion status helpers
-  const hasCompletion = completion && completion.total > 0;
-  const allCompleted = hasCompletion && completion.completed === completion.total;
-  const q2AllCompleted = hasCompletion && completion.q2Total > 0 && completion.q2Completed === completion.q2Total;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -79,7 +77,7 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, comple
         <View style={[styles.completionSection, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.completionRow}>
             <View style={styles.completionItem}>
-              <Text style={[styles.completionLabel, { color: theme.colors.textSecondary }]}>Tasks Done</Text>
+              <Text style={[styles.completionLabel, { color: theme.colors.textSecondary }]}>Total Tasks</Text>
               <View style={styles.completionValue}>
                 <Text style={[styles.completionNumber, { color: allCompleted ? theme.colors.q2 : theme.colors.text }]}>
                   {completion.completed}/{completion.total}
@@ -139,24 +137,33 @@ export function Q2Progress({ quadrantMinutes, totalMinutes, q2Percentage, comple
         </View>
       )}
 
-      {/* Main Q2 Score */}
+      {/* Main Q2 Completion Score - This is the PRIMARY metric */}
       <View style={styles.scoreContainer}>
-        <Text style={[styles.scoreLabel, { color: theme.colors.textSecondary }]}>Q2 Focus</Text>
+        <Text style={[styles.scoreLabel, { color: theme.colors.textSecondary }]}>Q2 Completion</Text>
         <View style={styles.scoreRow}>
-          <Text style={[styles.scoreValue, { color: theme.colors.q2 }]}>{q2Percentage}%</Text>
+          <Text style={[styles.scoreValue, { color: hasQ2Tasks && q2CompletionPercent > 0 ? theme.colors.q2 : theme.colors.textMuted }]}>
+            {hasQ2Tasks ? `${q2CompletionPercent}%` : '--'}
+          </Text>
           <Text style={styles.scoreEmoji}>{getEmoji()}</Text>
         </View>
-        <Text style={[styles.scoreSubtext, { color: theme.colors.textMuted }]}>
-          {formatDuration(quadrantMinutes.q2)} of {formatDuration(totalMinutes)}
-        </Text>
+        {hasQ2Tasks ? (
+          <Text style={[styles.scoreSubtext, { color: theme.colors.textMuted }]}>
+            {completion.q2Completed}/{completion.q2Total} Q2 tasks done
+          </Text>
+        ) : (
+          <Text style={[styles.scoreSubtext, { color: theme.colors.textMuted }]}>
+            No Q2 tasks yet
+          </Text>
+        )}
         <Text style={[styles.guidanceText, { color: guidance.color }]}>
           {guidance.text}
         </Text>
       </View>
 
-      {/* Quadrant Breakdown Bar */}
-      {showBreakdown && (
+      {/* Time Distribution - Secondary metric for planning insight */}
+      {showBreakdown && totalMinutes > 0 && (
         <View style={styles.breakdownContainer}>
+          <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Time Distribution</Text>
           <View style={[styles.barContainer, { backgroundColor: theme.colors.surfaceAlt }]}>
             {([1, 2, 3, 4] as const).map((q) => {
               const minutes = quadrantMinutes[`q${q}` as keyof QuadrantBreakdown];
@@ -310,6 +317,14 @@ const styles = StyleSheet.create({
   },
   breakdownContainer: {
     marginTop: 8,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 10,
   },
   barContainer: {
     flexDirection: 'row',

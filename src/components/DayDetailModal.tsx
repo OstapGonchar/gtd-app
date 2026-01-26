@@ -65,23 +65,25 @@ export function DayDetailModal({
               />
             </View>
 
-            {/* Summary Stats */}
+            {/* Summary Stats - Completion focused */}
             <View style={[styles.summaryRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryValue, { color: daySummary.completion.q2Total > 0 ? theme.colors.q2 : theme.colors.textMuted }]}>
+                  {daySummary.completion.q2Total > 0 ? `${daySummary.completion.q2Percentage}%` : '--'}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Q2 Done</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
+                  {daySummary.completion.completed}/{daySummary.completion.total}
+                </Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Tasks</Text>
+              </View>
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
                   {formatDuration(daySummary.totalMinutes)}
                 </Text>
-                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Total</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, { color: theme.colors.q2 }]}>
-                  {daySummary.q2Percentage}%
-                </Text>
-                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Q2 Time</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{daySummary.tasks.length}</Text>
-                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Activities</Text>
+                <Text style={[styles.summaryLabel, { color: theme.colors.textMuted }]}>Time</Text>
               </View>
             </View>
 

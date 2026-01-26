@@ -55,9 +55,9 @@ export function AboutModal({ visible, onClose }: AboutModalProps) {
             {/* What is Q2 Focus */}
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>What is Q2 Focus?</Text>
             <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
-              Q2 Focus helps you track how you spend your time using the Eisenhower Matrix.
-              The goal is to increase time spent on Quadrant 2 — important but not urgent tasks
-              that drive long-term success.
+              Q2 Focus helps you track and complete what matters most using the Eisenhower Matrix.
+              The goal is to plan and complete Quadrant 2 tasks — important but not urgent work
+              that drives long-term success.
             </Text>
 
             {/* The Matrix */}
@@ -100,21 +100,21 @@ export function AboutModal({ visible, onClose }: AboutModalProps) {
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Why Focus on Q2?</Text>
             <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
               Most people are stuck reacting to Q1 emergencies and Q3 interruptions.
-              By intentionally investing in Q2, you prevent future crises and build lasting value.
+              By intentionally completing Q2 tasks, you prevent future crises and build lasting value.
             </Text>
             <Text style={[styles.paragraph, { color: theme.colors.textSecondary }]}>
-              Aim for 30-40% of your time in Q2. Use this app to plan tasks, track completion,
-              and watch your focus improve over time.
+              True focus isn't just planning — it's completing. Track your Q2 task completion
+              to build momentum and see real progress over time.
             </Text>
 
             {/* Tips */}
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tips</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Tips for Success</Text>
             <View style={[styles.tipCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <Text style={[styles.tipText, { color: theme.colors.textSecondary }]}>
-                ✓ Plan Q2 tasks at the start of each day{'\n'}
-                ✓ Mark tasks complete as you finish them{'\n'}
-                ✓ Review your calendar to spot patterns{'\n'}
-                ✓ Celebrate completed Q2 tasks!
+                ✓ Add Q2 tasks at the start of each day{'\n'}
+                ✓ Check off tasks as you complete them{'\n'}
+                ✓ Focus on completing Q2 tasks first{'\n'}
+                ✓ Review calendar to track your progress
               </Text>
             </View>
 
@@ -127,7 +127,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps) {
             </TouchableOpacity>
 
             <Text style={[styles.version, { color: theme.colors.textMuted }]}>
-              Q2 Focus v1.0
+              Q2 Focus v1.1
             </Text>
           </ScrollView>
         </View>
