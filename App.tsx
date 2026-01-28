@@ -158,6 +158,11 @@ function AppContent() {
     loadData();
   };
 
+  const handleMoveTask = async (taskId: string, newDate: string) => {
+    await updateTask(taskId, { date: newDate });
+    loadData();
+  };
+
   const handleEditTask = (task: TaskEntry) => {
     setEditingTask(task);
     setIsAddTaskModalVisible(true);
@@ -477,6 +482,7 @@ function AppContent() {
         onAdd={handleAddTask}
         editingTask={editingTask}
         onUpdate={handleUpdateTask}
+        onMoveToDay={handleMoveTask}
       />
 
       {/* Calendar Tab (renamed from History) */}
