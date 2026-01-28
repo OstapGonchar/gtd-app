@@ -10,22 +10,45 @@ import { useTheme } from '../ThemeContext';
 
 interface DatePickerModalProps {
   visible: boolean;
+  mode?: 'move' | 'copy';
   onSelect: (dateStr: string) => void;
+  onSelectMultiple?: (dateStrs: string[]) => void;
   onClose: () => void;
 }
 
-export function DatePickerModal({ visible, onSelect, onClose }: DatePickerModalProps) {
+export function DatePickerModal({ visible, mode = 'move', onSelect, onSelectMultiple, onClose }: DatePickerModalProps) {
   const { theme } = useTheme();
   const today = new Date();
   const [pickerYear, setPickerYear] = useState(today.getFullYear());
   const [pickerMonth, setPickerMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
-  const handleMove = () => {
-    if (selectedDate) {
-      onSelect(selectedDate);
+  const handleConfirm = () => {
+    if (mode === 'copy') {
+      if (selectedDates.size > 0 && onSelectMultiple) {
+        onSelectMultiple([...selectedDates].sort());
+      }
+    } else {
+      if (selectedDate) {
+        onSelect(selectedDate);
+      }
     }
   };
+
+  const toggleDate = (dateStr: string) => {
+    setSelectedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) {
+        next.delete(dateStr);
+      } else {
+        next.add(dateStr);
+      }
+      return next;
+    });
+  };
+
+  const isConfirmDisabled = mode === 'copy' ? selectedDates.size === 0 : !selectedDate;
 
   const goToPrevMonth = () => {
     if (pickerMonth === 0) {
@@ -62,7 +85,16 @@ export function DatePickerModal({ visible, onSelect, onClose }: DatePickerModalP
       cellDate.setHours(0, 0, 0, 0);
       const dateStr = `${pickerYear}-${String(pickerMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isPast = cellDate < todayStart;
-      const isSelected = selectedDate === dateStr;
+      const isSelected = mode === 'copy' ? selectedDates.has(dateStr) : selectedDate === dateStr;
+
+      const handleDayPress = () => {
+        if (isPast) return;
+        if (mode === 'copy') {
+          toggleDate(dateStr);
+        } else {
+          setSelectedDate(dateStr);
+        }
+      };
 
       cells.push(
         <TouchableOpacity
@@ -71,7 +103,7 @@ export function DatePickerModal({ visible, onSelect, onClose }: DatePickerModalP
             styles.calendarCell,
             isSelected && { backgroundColor: theme.colors.primary, borderRadius: 20 },
           ]}
-          onPress={() => !isPast && setSelectedDate(dateStr)}
+          onPress={handleDayPress}
           disabled={isPast}
         >
           <Text style={[
@@ -139,12 +171,12 @@ export function DatePickerModal({ visible, onSelect, onClose }: DatePickerModalP
               style={[
                 styles.calendarConfirmBtn,
                 { backgroundColor: theme.colors.primary },
-                !selectedDate && { opacity: 0.4 },
+                isConfirmDisabled && { opacity: 0.4 },
               ]}
-              onPress={handleMove}
-              disabled={!selectedDate}
+              onPress={handleConfirm}
+              disabled={isConfirmDisabled}
             >
-              <Text style={styles.calendarConfirmText}>Move</Text>
+              <Text style={styles.calendarConfirmText}>{mode === 'copy' ? 'Copy' : 'Move'}</Text>
             </TouchableOpacity>
           </View>
         </View>

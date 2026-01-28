@@ -26,6 +26,7 @@ interface AddTaskModalProps {
   editingTask?: TaskEntry | null;
   onUpdate?: (taskId: string, title: string, quadrant: Quadrant, categoryId: string, duration: number) => void;
   onMoveToDay?: (taskId: string, newDate: string) => void;
+  onCopyToDays?: (taskId: string, dates: string[]) => void;
 }
 
 export function AddTaskModal({
@@ -37,6 +38,7 @@ export function AddTaskModal({
   editingTask,
   onUpdate,
   onMoveToDay,
+  onCopyToDays,
 }: AddTaskModalProps) {
   const { theme } = useTheme();
   const [title, setTitle] = useState('');
@@ -44,6 +46,7 @@ export function AddTaskModal({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [duration, setDuration] = useState(30);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCopyDatePicker, setShowCopyDatePicker] = useState(false);
 
   const isEditing = !!editingTask;
 
@@ -152,22 +155,45 @@ export function AddTaskModal({
               presets={durationPresets}
             />
 
-            {/* Move to another day - only when editing */}
-            {isEditing && editingTask && onMoveToDay && (
+            {/* Move / Copy - only when editing */}
+            {isEditing && editingTask && (onMoveToDay || onCopyToDays) && (
               <View>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Move to another day</Text>
-                <TouchableOpacity
-                  style={[styles.moveDateButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={[styles.moveDateButtonText, { color: theme.colors.primary }]}>Select Date</Text>
-                </TouchableOpacity>
+                <View style={styles.moveCopyRow}>
+                  {onMoveToDay && (
+                    <TouchableOpacity
+                      style={[styles.moveCopyButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text style={[styles.moveDateButtonText, { color: theme.colors.primary }]}>Move</Text>
+                    </TouchableOpacity>
+                  )}
+                  {onCopyToDays && (
+                    <TouchableOpacity
+                      style={[styles.moveCopyButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                      onPress={() => setShowCopyDatePicker(true)}
+                    >
+                      <Text style={[styles.moveDateButtonText, { color: theme.colors.primary }]}>Copy</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <DatePickerModal
                   visible={showDatePicker}
+                  mode="move"
                   onClose={() => setShowDatePicker(false)}
                   onSelect={(dateStr) => {
-                    onMoveToDay(editingTask.id, dateStr);
+                    if (onMoveToDay) onMoveToDay(editingTask.id, dateStr);
                     setShowDatePicker(false);
+                    onClose();
+                  }}
+                />
+                <DatePickerModal
+                  visible={showCopyDatePicker}
+                  mode="copy"
+                  onClose={() => setShowCopyDatePicker(false)}
+                  onSelect={() => {}}
+                  onSelectMultiple={(dateStrs) => {
+                    if (onCopyToDays) onCopyToDays(editingTask.id, dateStrs);
+                    setShowCopyDatePicker(false);
                     onClose();
                   }}
                 />
@@ -258,7 +284,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
   },
-  moveDateButton: {
+  moveCopyRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 22,
+  },
+  moveCopyButton: {
+    flex: 1,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',

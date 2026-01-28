@@ -131,6 +131,22 @@ export async function deleteTask(id: string): Promise<void> {
   await saveTasks(filtered);
 }
 
+export async function copyTaskToDates(id: string, dates: string[]): Promise<void> {
+  const tasks = await getAllTasks();
+  const source = tasks.find(t => t.id === id);
+  if (!source) return;
+  for (const date of dates) {
+    tasks.push({
+      ...source,
+      id: generateId(),
+      date,
+      completed: false,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  await saveTasks(tasks);
+}
+
 export async function toggleTaskCompletion(id: string): Promise<boolean | undefined> {
   const tasks = await getAllTasks();
   const index = tasks.findIndex(t => t.id === id);

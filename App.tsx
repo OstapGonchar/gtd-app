@@ -28,6 +28,7 @@ import {
   deleteCategory,
   addTask,
   updateTask,
+  copyTaskToDates,
   deleteTask,
   toggleTaskCompletion,
   getDaySummary,
@@ -160,6 +161,11 @@ function AppContent() {
 
   const handleMoveTask = async (taskId: string, newDate: string) => {
     await updateTask(taskId, { date: newDate });
+    loadData();
+  };
+
+  const handleCopyTask = async (taskId: string, dates: string[]) => {
+    await copyTaskToDates(taskId, dates);
     loadData();
   };
 
@@ -483,6 +489,7 @@ function AppContent() {
         editingTask={editingTask}
         onUpdate={handleUpdateTask}
         onMoveToDay={handleMoveTask}
+        onCopyToDays={handleCopyTask}
       />
 
       {/* Calendar Tab (renamed from History) */}
