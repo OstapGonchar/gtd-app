@@ -14,6 +14,7 @@ import { Category, Quadrant, TaskEntry } from '../types';
 import { QuadrantPicker } from './QuadrantPicker';
 import { CategoryPicker } from './CategoryPicker';
 import { DurationPicker } from './DurationPicker';
+import { DatePickerModal } from './DatePickerModal';
 import { useTheme } from '../ThemeContext';
 
 interface AddTaskModalProps {
@@ -24,6 +25,7 @@ interface AddTaskModalProps {
   onAdd: (title: string, quadrant: Quadrant, categoryId: string, duration: number) => void;
   editingTask?: TaskEntry | null;
   onUpdate?: (taskId: string, title: string, quadrant: Quadrant, categoryId: string, duration: number) => void;
+  onMoveToDay?: (taskId: string, newDate: string) => void;
 }
 
 export function AddTaskModal({
@@ -34,12 +36,14 @@ export function AddTaskModal({
   onAdd,
   editingTask,
   onUpdate,
+  onMoveToDay,
 }: AddTaskModalProps) {
   const { theme } = useTheme();
   const [title, setTitle] = useState('');
   const [quadrant, setQuadrant] = useState<Quadrant | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [duration, setDuration] = useState(30);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const isEditing = !!editingTask;
 
@@ -148,6 +152,28 @@ export function AddTaskModal({
               presets={durationPresets}
             />
 
+            {/* Move to another day - only when editing */}
+            {isEditing && editingTask && onMoveToDay && (
+              <View>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Move to another day</Text>
+                <TouchableOpacity
+                  style={[styles.moveDateButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={[styles.moveDateButtonText, { color: theme.colors.primary }]}>Select Date</Text>
+                </TouchableOpacity>
+                <DatePickerModal
+                  visible={showDatePicker}
+                  onClose={() => setShowDatePicker(false)}
+                  onSelect={(dateStr) => {
+                    onMoveToDay(editingTask.id, dateStr);
+                    setShowDatePicker(false);
+                    onClose();
+                  }}
+                />
+              </View>
+            )}
+
             <View style={styles.spacer} />
           </ScrollView>
         </View>
@@ -231,6 +257,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 16,
     borderWidth: 1,
+  },
+  moveDateButton: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  moveDateButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   spacer: {
     height: 44,
