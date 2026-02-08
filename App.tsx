@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
   Image,
+  AppState,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { ThemeProvider, useTheme, ThemeMode } from './src/ThemeContext';
@@ -123,6 +124,13 @@ function AppContent() {
     setMonthSummaries(summaries);
   }, [currentMonth]);
 
+  const refreshData = useCallback(async (refreshMonth: boolean = false) => {
+    await loadData();
+    if (refreshMonth) {
+      await loadMonthData();
+    }
+  }, [loadData, loadMonthData]);
+
   useEffect(() => {
     (async () => {
       await initDB();
@@ -142,31 +150,44 @@ function AppContent() {
     }
   }, [isLoading, loadMonthData]);
 
-  // Refresh calendar data when switching to calendar tab
+  // Refresh data when switching tabs so streak/status stays current
   useEffect(() => {
-    if (!isLoading && activeTab === 'calendar') {
-      loadMonthData();
+    if (!isLoading) {
+      refreshData(activeTab === 'calendar');
     }
-  }, [activeTab, isLoading, loadMonthData]);
+  }, [activeTab, isLoading, refreshData]);
+
+  // Refresh when app returns to foreground
+  useEffect(() => {
+    if (isLoading) return;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshData(activeTab === 'calendar');
+      }
+    });
+
+    return () => subscription.remove();
+  }, [isLoading, activeTab, refreshData]);
 
   const handleAddTask = async (title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
     await addTask(title, quadrant, categoryId, duration, planDate);
-    loadData();
+    await refreshData(activeTab === 'calendar');
   };
 
   const handleUpdateTask = async (taskId: string, title: string, quadrant: Quadrant, categoryId: string, duration: number) => {
     await updateTask(taskId, { title, quadrant, categoryId, duration });
-    loadData();
+    await refreshData(activeTab === 'calendar');
   };
 
   const handleMoveTask = async (taskId: string, newDate: string) => {
     await updateTask(taskId, { date: newDate });
-    loadData();
+    await refreshData(true);
   };
 
   const handleCopyTask = async (taskId: string, dates: string[]) => {
     await copyTaskToDates(taskId, dates);
-    loadData();
+    await refreshData(true);
   };
 
   const handleEditTask = (task: TaskEntry) => {
@@ -210,13 +231,13 @@ function AppContent() {
       : true;
     if (confirmed) {
       await deleteTask(taskId);
-      loadData();
+      await refreshData(activeTab === 'calendar');
     }
   };
 
   const handleToggleTaskCompletion = async (taskId: string) => {
     await toggleTaskCompletion(taskId);
-    loadData();
+    await refreshData(activeTab === 'calendar');
   };
 
   const handleAddCategory = async () => {
@@ -226,7 +247,7 @@ function AppContent() {
     await addCategory(newCategoryName.trim(), color, newCategoryIcon || undefined);
     setNewCategoryName('');
     setNewCategoryIcon(null);
-    loadData();
+    await refreshData(activeTab === 'calendar');
   };
 
   const handleDayPress = async (date: string) => {
@@ -291,7 +312,7 @@ function AppContent() {
       : true;
     if (confirmed) {
       await deleteCategory(categoryId);
-      loadData();
+      await refreshData(activeTab === 'calendar');
     }
   };
 
@@ -653,7 +674,7 @@ function AppContent() {
       )}
 
       {/* Dev Tools */}
-      <DevTools onDataReset={() => { loadData(); loadMonthData(); }} />
+      <DevTools onDataReset={() => { refreshData(true); }} />
     </View>
   );
 }
